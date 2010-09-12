@@ -277,7 +277,7 @@ class BaseForm(StrAndUnicode):
             # widgets split data over several HTML fields.
             value = field.widget.value_from_datadict(self.data, self.files, self.add_prefix(name))
             try:
-                if isinstance(field, FileField):
+                if field.clean_takes_initial:
                     initial = self.initial.get(name, field.initial)
                     value = field.clean(value, initial)
                 else:

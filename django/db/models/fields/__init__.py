@@ -65,6 +65,8 @@ class Field(object):
         'blank': _(u'This field cannot be blank.'),
     }
 
+    defer_save = False # If true, defer saving until after other fields.
+    
     # Generic field type description, usually overriden by subclasses
     def _description(self):
         return _(u'Field of type: %(field_type)s') % {

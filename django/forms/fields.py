@@ -65,6 +65,7 @@ class Field(object):
         'required': _(u'This field is required.'),
         'invalid': _(u'Enter a valid value.'),
     }
+    clean_takes_initial = False # If true, clean() takes initial value as well as data.
 
     # Tracks each time a Field instance is created. Used to retain order.
     creation_counter = 0
@@ -441,6 +442,8 @@ class FileField(Field):
         'empty': _(u"The submitted file is empty."),
         'max_length': _(u'Ensure this filename has at most %(max)d characters (it has %(length)d).'),
     }
+
+    clean_takes_initial = True
 
     def __init__(self, *args, **kwargs):
         self.max_length = kwargs.pop('max_length', None)

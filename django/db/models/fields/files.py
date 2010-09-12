@@ -217,6 +217,8 @@ class FileField(Field):
     # The descriptor to use for accessing the attribute off of the class.
     descriptor_class = FileDescriptor
 
+    defer_save = True
+
     description = ugettext_lazy("File path")
 
     def __init__(self, verbose_name=None, name=None, upload_to='', storage=None, **kwargs):

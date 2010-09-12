@@ -35,7 +35,7 @@ def construct_instance(form, instance, fields=None, exclude=None):
     opts = instance._meta
 
     cleaned_data = form.cleaned_data
-    file_field_list = []
+    deferred_list = []
     for f in opts.fields:
         if not f.editable or isinstance(f, models.AutoField) \
                 or not f.name in cleaned_data:
@@ -46,12 +46,12 @@ def construct_instance(form, instance, fields=None, exclude=None):
             continue
         # Defer saving file-type fields until after the other fields, so a
         # callable upload_to can use the values from other fields.
-        if isinstance(f, models.FileField):
-            file_field_list.append(f)
+        if f.defer_save:
+            deferred_list.append(f)
         else:
             f.save_form_data(instance, cleaned_data[f.name])
 
-    for f in file_field_list:
+    for f in deferred_list:
         f.save_form_data(instance, cleaned_data[f.name])
 
     return instance
