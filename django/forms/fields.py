@@ -736,6 +736,13 @@ class MultiValueField(Field):
     "compressed" version of those values -- a single value.
 
     You'll probably want to use this with MultiWidget.
+
+    If your MultiValueField subclass includes a FileField or derivative as one
+    of its fields, there will be subtle differences in behavior (particularly
+    displaying a bound form with initial data) unless you set your subclasses'
+    ``clean_takes_initial`` attribute to True and override the clean() method
+    to accept an ``initial`` arg and pass it (or an appropriate part of it) on
+    to the member FileField.
     """
     default_error_messages = {
         'invalid': _(u'Enter a list of values.'),
