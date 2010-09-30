@@ -1392,23 +1392,38 @@ class TemplateTagLoading(unittest.TestCase):
 
 
 class TemplateSignalTests(unittest.TestCase):
-    def test_debug_template_rendered_signal(self):
-        "In DEBUG mode, template-rendering sends a template_rendered signal."
-        received = []
+    def setUp(self):
+        self._old_send = template.Template.send_rendered_signal
+
+        self.received = []
         def _handle_signal(signal, sender, template, context, **kwargs):
-            received.append((template, context))
-        old_debug = settings.DEBUG
-        settings.DEBUG = True
-        template_rendered.connect(_handle_signal, dispatch_uid='test-template-rendered')
+            self.received.append((template, context))
+        template_rendered.connect(_handle_signal, weak=False, dispatch_uid='test-template-rendered')
+
+    def tearDown(self):
+        template_rendered.disconnect(dispatch_uid='test-template-rendered')
+
+        template.Template.send_rendered_signal = self._old_send
+
+    def test_template_rendered_signal_on(self):
+        "If Template.send_rendered_signal is True, template-rendering sends a template_rendered signal."
+        template.Template.send_rendered_signal = True
 
         t = template.Template("{{ stuff }}")
         c = template.Context({'stuff': 'something'})
         t.render(c)
 
-        self.assertEqual(received, [(t, c)])
+        self.assertEqual(self.received, [(t, c)])
 
-        settings.DEBUG = old_debug
-        template_rendered.disconnect(dispatch_uid='test-template-rendered')
+    def test_template_rendered_signal_off(self):
+        "If Template.send_rendered_signal is False, template-rendering does not send template_rendered signal."
+        template.Template.send_rendered_signal = False
+
+        t = template.Template("{{ stuff }}")
+        c = template.Context({'stuff': 'something'})
+        t.render(c)
+
+        self.assertEqual(self.received, [])
 
 
 if __name__ == "__main__":
