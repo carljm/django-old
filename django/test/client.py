@@ -16,7 +16,7 @@ from django.core.handlers.wsgi import WSGIRequest
 from django.core.signals import got_request_exception
 from django.http import SimpleCookie, HttpRequest, QueryDict
 from django.template import TemplateDoesNotExist
-from django.test import signals
+from django.template import signals
 from django.utils.functional import curry
 from django.utils.encoding import smart_str
 from django.utils.http import urlencode

@@ -4,7 +4,6 @@ import os
 from django.conf import settings
 from django.core import mail
 from django.core.mail.backends import locmem
-from django.test import signals
 from django.template import Template
 from django.utils.translation import deactivate
 
@@ -43,14 +42,6 @@ class ContextList(list):
             return False
         return True
 
-def instrumented_test_render(self, context):
-    """
-    An instrumented Template render method, providing a signal
-    that can be intercepted by the test system Client
-    """
-    signals.template_rendered.send(sender=self, template=self, context=context)
-    return self.nodelist.render(context)
-
 
 def setup_test_environment():
     """Perform any global pre-test setup. This involves:
@@ -59,8 +50,8 @@ def setup_test_environment():
         - Set the email backend to the locmem email backend.
         - Setting the active locale to match the LANGUAGE_CODE setting.
     """
-    Template.original_render = Template._render
-    Template._render = instrumented_test_render
+    Template._original_send_rendered_signal = Template.send_rendered_signal
+    Template.send_rendered_signal = True
 
     mail.original_SMTPConnection = mail.SMTPConnection
     mail.SMTPConnection = locmem.EmailBackend
@@ -79,8 +70,8 @@ def teardown_test_environment():
         - Restoring the email sending functions
 
     """
-    Template._render = Template.original_render
-    del Template.original_render
+    Template.send_rendered_signal = Template._original_send_rendered_signal
+    del Template._original_send_rendered_signal
 
     mail.SMTPConnection = mail.original_SMTPConnection
     del mail.original_SMTPConnection

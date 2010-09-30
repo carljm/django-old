@@ -54,6 +54,7 @@ from inspect import getargspec
 
 from django.conf import settings
 from django.template.context import Context, RequestContext, ContextPopException
+from django.template.signals import template_rendered
 from django.utils.importlib import import_module
 from django.utils.itercompat import is_iterable
 from django.utils.functional import curry, Promise
@@ -148,6 +149,8 @@ class StringOrigin(Origin):
         return self.source
 
 class Template(object):
+    send_rendered_signal = settings.TEMPLATE_DEBUG
+
     def __init__(self, template_string, origin=None, name='<Unknown Template>'):
         try:
             template_string = smart_unicode(template_string)
@@ -164,6 +167,8 @@ class Template(object):
                 yield subnode
 
     def _render(self, context):
+        if self.send_rendered_signal:
+            template_rendered.send(sender=self, template=self, context=context)
         return self.nodelist.render(context)
 
     def render(self, context):

@@ -16,6 +16,7 @@ import unittest
 from django import template
 from django.core import urlresolvers
 from django.template import loader
+from django.template.signals import template_rendered
 from django.template.loaders import app_directories, filesystem, cached
 from django.utils.translation import activate, deactivate, ugettext as _
 from django.utils.safestring import mark_safe
@@ -1388,6 +1389,27 @@ class TemplateTagLoading(unittest.TestCase):
         sys.path.append(egg_name)
         settings.INSTALLED_APPS = ('tagsegg',)
         t = template.Template(ttext)
+
+
+class TemplateSignalTests(unittest.TestCase):
+    def test_debug_template_rendered_signal(self):
+        "In DEBUG mode, template-rendering sends a template_rendered signal."
+        received = []
+        def _handle_signal(signal, sender, template, context, **kwargs):
+            received.append((template, context))
+        old_debug = settings.DEBUG
+        settings.DEBUG = True
+        template_rendered.connect(_handle_signal, dispatch_uid='test-template-rendered')
+
+        t = template.Template("{{ stuff }}")
+        c = template.Context({'stuff': 'something'})
+        t.render(c)
+
+        self.assertEqual(received, [(t, c)])
+
+        settings.DEBUG = old_debug
+        template_rendered.disconnect(dispatch_uid='test-template-rendered')
+
 
 if __name__ == "__main__":
     unittest.main()
