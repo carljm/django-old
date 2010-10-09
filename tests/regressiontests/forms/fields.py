@@ -57,6 +57,10 @@ class FieldsTests(TestCase):
         except error, e:
             self.assertEqual(message, str(e))
 
+    def test_field_sets_widget_is_required(self):
+        self.assertEqual(Field(required=True).widget.is_required, True)
+        self.assertEqual(Field(required=False).widget.is_required, False)
+
     # CharField ###################################################################
 
     def test_charfield_0(self):
@@ -426,6 +430,7 @@ class FieldsTests(TestCase):
         self.assertEqual(u'', f.clean(''))
         self.assertEqual(u'', f.clean(None))
         self.assertEqual(u'person@example.com', f.clean('person@example.com'))
+        self.assertEqual(u'example@example.com', f.clean('      example@example.com  \t   \t '))
         self.assertRaisesErrorWithMessage(ValidationError, "[u'Enter a valid e-mail address.']", f.clean, 'foo')
         self.assertRaisesErrorWithMessage(ValidationError, "[u'Enter a valid e-mail address.']", f.clean, 'foo@')
         self.assertRaisesErrorWithMessage(ValidationError, "[u'Enter a valid e-mail address.']", f.clean, 'foo@bar')
