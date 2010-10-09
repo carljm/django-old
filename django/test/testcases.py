@@ -37,8 +37,6 @@ real_commit = transaction.commit
 real_rollback = transaction.rollback
 real_enter_transaction_management = transaction.enter_transaction_management
 real_leave_transaction_management = transaction.leave_transaction_management
-real_savepoint_commit = transaction.savepoint_commit
-real_savepoint_rollback = transaction.savepoint_rollback
 real_managed = transaction.managed
 
 def nop(*args, **kwargs):
@@ -47,8 +45,6 @@ def nop(*args, **kwargs):
 def disable_transaction_methods():
     transaction.commit = nop
     transaction.rollback = nop
-    transaction.savepoint_commit = nop
-    transaction.savepoint_rollback = nop
     transaction.enter_transaction_management = nop
     transaction.leave_transaction_management = nop
     transaction.managed = nop
@@ -56,8 +52,6 @@ def disable_transaction_methods():
 def restore_transaction_methods():
     transaction.commit = real_commit
     transaction.rollback = real_rollback
-    transaction.savepoint_commit = real_savepoint_commit
-    transaction.savepoint_rollback = real_savepoint_rollback
     transaction.enter_transaction_management = real_enter_transaction_management
     transaction.leave_transaction_management = real_leave_transaction_management
     transaction.managed = real_managed
@@ -210,6 +204,10 @@ class DocTestRunner(doctest.DocTestRunner):
             transaction.rollback_unless_managed(using=conn)
 
 class TransactionTestCase(unittest.TestCase):
+    # The class we'll use for the test client self.client.
+    # Can be overridden in derived classes.
+    client_class = Client
+
     def _pre_setup(self):
         """Performs any pre-test setup. This includes:
 
@@ -251,7 +249,7 @@ class TransactionTestCase(unittest.TestCase):
         set up. This means that user-defined Test Cases aren't required to
         include a call to super().setUp().
         """
-        self.client = Client()
+        self.client = self.client_class()
         try:
             self._pre_setup()
         except (KeyboardInterrupt, SystemExit):

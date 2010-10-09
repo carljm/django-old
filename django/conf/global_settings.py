@@ -292,34 +292,34 @@ FILE_UPLOAD_PERMISSIONS = None
 FORMAT_MODULE_PATH = None
 
 # Default formatting for date objects. See all available format strings here:
-# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#now
+# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#date
 DATE_FORMAT = 'N j, Y'
 
 # Default formatting for datetime objects. See all available format strings here:
-# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#now
+# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#date
 DATETIME_FORMAT = 'N j, Y, P'
 
 # Default formatting for time objects. See all available format strings here:
-# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#now
+# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#date
 TIME_FORMAT = 'P'
 
 # Default formatting for date objects when only the year and month are relevant.
 # See all available format strings here:
-# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#now
+# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#date
 YEAR_MONTH_FORMAT = 'F Y'
 
 # Default formatting for date objects when only the month and day are relevant.
 # See all available format strings here:
-# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#now
+# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#date
 MONTH_DAY_FORMAT = 'F j'
 
 # Default short formatting for date objects. See all available format strings here:
-# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#now
+# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#date
 SHORT_DATE_FORMAT = 'm/d/Y'
 
 # Default short formatting for datetime objects.
 # See all available format strings here:
-# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#now
+# http://docs.djangoproject.com/en/dev/ref/templates/builtins/#date
 SHORT_DATETIME_FORMAT = 'm/d/Y P'
 
 # Default formats to be used when parsing dates from input boxes, in order
@@ -439,7 +439,7 @@ COMMENTS_ALLOW_PROFANITIES = False
 
 # The profanities that will trigger a validation error in the
 # 'hasNoProfanities' validator. All of these should be in lowercase.
-PROFANITIES_LIST = ('asshat', 'asshead', 'asshole', 'cunt', 'fuck', 'gook', 'nigger', 'shit')
+PROFANITIES_LIST = ()
 
 # The group ID that designates which users are banned.
 # Set to None if you're not using it.
@@ -497,6 +497,34 @@ MESSAGE_STORAGE = 'django.contrib.messages.storage.user_messages.LegacyFallbackS
 
 # Default values of MESSAGE_LEVEL and MESSAGE_TAGS are defined within
 # django.contrib.messages to avoid imports in this settings file.
+
+###########
+# LOGGING #
+###########
+
+# The callable to use to configure logging
+LOGGING_CONFIG = 'django.utils.log.dictConfig'
+
+# The default logging configuration. This sends an email to
+# the site admins on every HTTP 500 error. All other log
+# records are sent to the bit bucket.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler'
+        }
+    },
+    'loggers': {
+        'django.request':{
+            'handlers': ['mail_admins'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    }
+}
 
 ###########
 # TESTING #
