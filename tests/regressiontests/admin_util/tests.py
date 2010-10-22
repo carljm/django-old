@@ -26,45 +26,36 @@ class NestedObjectsTests(TestCase):
     def _check(self, target):
         self.assertEquals(self.n.nested(lambda obj: obj.num), target)
 
-    def _add(self, obj, parent=None):
-        # don't bother providing the extra args that NestedObjects ignores
-        self.n.add(None, None, obj, None, parent)
+    def _connect(self, i, j):
+        self.objs[i].parent = self.objs[j]
+        self.objs[i].save()
+        
+    def _collect(self, *indices):
+        self.n.collect([self.objs[i] for i in indices])
 
     def test_unrelated_roots(self):
-        self._add(self.objs[0])
-        self._add(self.objs[1])
-        self._add(self.objs[2], self.objs[1])
-
+        self._connect(2, 1)
+        self._collect(0)
+        self._collect(1)
         self._check([0, 1, [2]])
 
     def test_siblings(self):
-        self._add(self.objs[0])
-        self._add(self.objs[1], self.objs[0])
-        self._add(self.objs[2], self.objs[0])
-
+        self._connect(1, 0)
+        self._connect(2, 0)
+        self._collect(0)
         self._check([0, [1, 2]])
 
-    def test_duplicate_instances(self):
-        self._add(self.objs[0])
-        self._add(self.objs[1])
-        dupe = Count.objects.get(num=1)
-        self._add(dupe, self.objs[0])
-
-        self._check([0, 1])
-
     def test_non_added_parent(self):
-        self._add(self.objs[0], self.objs[1])
-
+        self._connect(0, 1)
+        self._collect(0)
         self._check([0])
 
     def test_cyclic(self):
-        self._add(self.objs[0], self.objs[2])
-        self._add(self.objs[1], self.objs[0])
-        self._add(self.objs[2], self.objs[1])
-        self._add(self.objs[0], self.objs[2])
-
+        self._connect(0, 2)
+        self._connect(1, 0)
+        self._connect(2, 1)
+        self._collect(0)
         self._check([0, [1, [2]]])
-
 
 class UtilTests(unittest.TestCase):
     def test_values_from_lookup_field(self):

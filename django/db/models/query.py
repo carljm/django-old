@@ -7,7 +7,8 @@ from itertools import izip
 from django.db import connections, router, transaction, IntegrityError
 from django.db.models.aggregates import Aggregate
 from django.db.models.fields import DateField
-from django.db.models.query_utils import Q, select_related_descend, CollectedObjects, CyclicDependency, deferred_class_factory, InvalidQuery
+from django.db.models.query_utils import Q, select_related_descend, deferred_class_factory, InvalidQuery
+from django.db.models.deletion import Collector
 from django.db.models import signals, sql
 from django.utils.copycompat import deepcopy
 
@@ -426,22 +427,9 @@ class QuerySet(object):
         del_query.query.select_related = False
         del_query.query.clear_ordering()
 
-        # Delete objects in chunks to prevent the list of related objects from
-        # becoming too long.
-        seen_objs = None
-        del_itr = iter(del_query)
-        while 1:
-            # Collect a chunk of objects to be deleted, and then all the
-            # objects that are related to the objects that are to be deleted.
-            # The chunking *isn't* done by slicing the del_query because we
-            # need to maintain the query cache on del_query (see #12328)
-            seen_objs = CollectedObjects(seen_objs)
-            for i, obj in izip(xrange(CHUNK_SIZE), del_itr):
-                obj._collect_sub_objects(seen_objs)
-
-            if not seen_objs:
-                break
-            delete_objects(seen_objs, del_query.db)
+        collector = Collector()
+        collector.collect(del_query)
+        collector.delete(using=del_query.db)
 
         # Clear the result cache, in case this QuerySet gets reused.
         self._result_cache = None
