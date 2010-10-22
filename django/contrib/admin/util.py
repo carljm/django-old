@@ -105,7 +105,6 @@ def get_deleted_objects(objs, opts, user, admin_site, levels_to_root=4):
     method uses this function also from a change_list view.
     This will not be used if we can reverse the URL.
     """
-    # FIXME: This code is broken. The old version depends on Model._collect_sub_objects() and contained a TODO comment.
     collector = NestedObjects()
     collector.collect(objs)
     perms_needed = set()
