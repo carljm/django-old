@@ -1,8 +1,11 @@
-from django.utils.datastructures import SortedDict
-from django.utils.functional import wraps
+from operator import attrgetter
+
 from django.db import connections, transaction, IntegrityError
 from django.db.models import signals, sql
 from django.db.models.sql.constants import GET_ITERATOR_CHUNK_SIZE
+from django.utils.datastructures import SortedDict
+from django.utils.functional import wraps
+
 
 def CASCADE(collector, field, sub_objs):
     collector.collect(sub_objs, source=field.rel.to,
@@ -10,24 +13,23 @@ def CASCADE(collector, field, sub_objs):
     if field.null:
         # FIXME: there should be a connection feature indicating whether the
         # connection can defer constraint checks (currently only Postgres and
-        # Oracle). If so, nullable related fields do not need to be nulled out before
-        # deletion.
+        # Oracle). If so, nullable related fields do not need to be nulled out
+        # before deletion. This would also require this function to have access
+        # to the connection.
         collector.add_field_update(field, None, sub_objs)
 
 def PROTECT(collector, field, sub_objs):
-    msg = ("Cannot delete some instances of model '%s' "
-    "because they are referenced through a protected foreign key: '%s.%s'" % (
-        field.rel.to.__name__, sub_objs[0].__class__.__name__, field.name
+    raise IntegrityError("Cannot delete some instances of model '%s' because "
+        "they are referenced through a protected foreign key: '%s.%s'" % (
+            field.rel.to.__name__, sub_objs[0].__class__.__name__, field.name
     ))
-    raise IntegrityError(msg)
 
 def SET(value):
     def set_on_delete(collector, field, sub_objs):
         collector.add_field_update(field, value, sub_objs)
     return set_on_delete
 
-def SET_NULL(collector, field, sub_objs):
-    collector.add_field_update(field, None, sub_objs)
+SET_NULL = SET(None)
 
 def SET_DEFAULT(collector, field, sub_objs):
     collector.add_field_update(field, field.get_default(), sub_objs)
@@ -36,6 +38,8 @@ def DO_NOTHING(collector, field, sub_objs):
     pass
 
 def force_managed(func):
+    # TODO: This needs to take using, at present this can act on the wrong
+    # database.
     @wraps(func)
     def decorated(*args, **kwargs):
         if not transaction.is_managed():
@@ -79,8 +83,8 @@ class Collector(object):
                 new_objs.append(obj)
         instances.extend(new_objs)
         # Nullable relationships can be ignored -- they are nulled out before
-        # deleting, and therefore do not affect the order in which objects
-        # have to be deleted.
+        # deleting, and therefore do not affect the order in which objects have
+        # to be deleted.
         if new_objs and source is not None and not nullable:
             self.dependencies.setdefault(source, set()).add(model)
         return new_objs
@@ -97,7 +101,6 @@ class Collector(object):
         Schedules a field update. 'objs' must be a homogenous iterable
         collection of model instances (e.g. a QuerySet).
         """
-        objs = list(objs)
         if not objs:
             return
         model = objs[0].__class__
@@ -123,8 +126,8 @@ class Collector(object):
             return
         model = new_objs[0].__class__
 
-        # Recursively collect parent models, but not their related
-        # objects. These will be found by meta.get_all_related_objects()
+        # Recursively collect parent models, but not their related objects.
+        # These will be found by meta.get_all_related_objects()
         for parent_model, ptr in model._meta.parents.iteritems():
             if ptr:
                 parent_objs = [getattr(obj, ptr.name) for obj in new_objs]
@@ -138,9 +141,11 @@ class Collector(object):
                 if field.rel.is_hidden():
                     self.add_batch(related.model, field, new_objs)
                 else:
-                    # FIXME factor this out so the admin can do select_related on it
+                    # FIXME factor this out so the admin can do select_related
+                    # on it
                     sub_objs = related.model._base_manager.using(using).filter(
-                        **{"%s__in" % field.name: new_objs})
+                        **{"%s__in" % field.name: new_objs}
+                    )
                     if not sub_objs:
                         continue
                     field.rel.on_delete(self, field, sub_objs)
@@ -169,8 +174,7 @@ class Collector(object):
                 if model in sorted_models:
                     continue
                 dependencies = self.dependencies.get(model)
-                if (not dependencies or
-                    not dependencies.difference(sorted_models)):
+                if not (dependencies and dependencies.difference(sorted_models)):
                     sorted_models.append(model)
                     found = True
             if not found:
@@ -182,7 +186,7 @@ class Collector(object):
     def delete(self, using=None):
         # sort instance collections
         for instances in self.data.itervalues():
-            instances.sort(key=lambda obj: obj.pk)
+            instances.sort(key=attrgetter("pk"))
 
         # if possible, bring the models in an order suitable for databases that
         # don't support transactions or cannot defer contraint checks until the
