@@ -8,8 +8,10 @@ def CASCADE(collector, field, sub_objs):
     collector.collect(sub_objs, source=field.rel.to,
                       source_attr=field.name, nullable=field.null)
     if field.null:
-        # FIXME: there should be a connection feature indicating whether
-        # nullable related fields should be nulled out before deletion
+        # FIXME: there should be a connection feature indicating whether the
+        # connection can defer constraint checks (currently only Postgres and
+        # Oracle). If so, nullable related fields do not need to be nulled out before
+        # deletion.
         collector.add_field_update(field, None, sub_objs)
 
 def PROTECT(collector, field, sub_objs):
@@ -136,6 +138,7 @@ class Collector(object):
                 if field.rel.is_hidden():
                     self.add_batch(related.model, field, new_objs)
                 else:
+                    # FIXME factor this out so the admin can do select_related on it
                     sub_objs = related.model._base_manager.using(using).filter(
                         **{"%s__in" % field.name: new_objs})
                     if not sub_objs:
