@@ -7,59 +7,53 @@ from django.utils.datastructures import SortedDict
 from django.utils.functional import wraps
 
 
-def CASCADE(collector, field, sub_objs):
+def CASCADE(collector, field, sub_objs, using):
     collector.collect(sub_objs, source=field.rel.to,
                       source_attr=field.name, nullable=field.null)
-    if field.null:
-        # FIXME: there should be a connection feature indicating whether the
-        # connection can defer constraint checks (currently only Postgres and
-        # Oracle). If so, nullable related fields do not need to be nulled out
-        # before deletion. This would also require this function to have access
-        # to the connection.
+    if field.null and not connections[using].features.can_defer_constraint_checks:
         collector.add_field_update(field, None, sub_objs)
 
-def PROTECT(collector, field, sub_objs):
+def PROTECT(collector, field, sub_objs, using):
     raise IntegrityError("Cannot delete some instances of model '%s' because "
         "they are referenced through a protected foreign key: '%s.%s'" % (
             field.rel.to.__name__, sub_objs[0].__class__.__name__, field.name
     ))
 
 def SET(value):
-    def set_on_delete(collector, field, sub_objs):
+    def set_on_delete(collector, field, sub_objs, using):
         collector.add_field_update(field, value, sub_objs)
     return set_on_delete
 
 SET_NULL = SET(None)
 
-def SET_DEFAULT(collector, field, sub_objs):
+def SET_DEFAULT(collector, field, sub_objs, using):
     collector.add_field_update(field, field.get_default(), sub_objs)
 
-def DO_NOTHING(collector, field, sub_objs):
+def DO_NOTHING(collector, field, sub_objs, using):
     pass
 
 def force_managed(func):
-    # TODO: This needs to take using, at present this can act on the wrong
-    # database.
     @wraps(func)
-    def decorated(*args, **kwargs):
-        if not transaction.is_managed():
-            transaction.enter_transaction_management()
+    def decorated(self, *args, **kwargs):
+        if not transaction.is_managed(using=self.using):
+            transaction.enter_transaction_management(using=self.using)
             forced_managed = True
         else:
             forced_managed = False
         try:
-            func(*args, **kwargs)
+            func(self, *args, **kwargs)
             if forced_managed:
-                transaction.commit()
+                transaction.commit(using=self.using)
             else:
-                transaction.commit_unless_managed()
+                transaction.commit_unless_managed(using=self.using)
         finally:
             if forced_managed:
-                transaction.leave_transaction_management()
+                transaction.leave_transaction_management(using=self.using)
     return decorated
 
 class Collector(object):
-    def __init__(self):
+    def __init__(self, using):
+        self.using = using
         self.data = {} # {model: [instances]}
         self.batches = {} # {model: {field: set([instances])}}
         self.field_updates = {} # {model: {(field, value): set([instances])}}
@@ -108,8 +102,8 @@ class Collector(object):
             model, {}).setdefault(
             (field, value), set()).update(objs)
 
-    def collect(self, objs, source=None, nullable=False,
-                collect_related=True, using=None, source_attr=None):
+    def collect(self, objs, source=None, nullable=False, collect_related=True,
+        source_attr=None):
         """
         Adds 'objs' to the collection of objects to be deleted as well as all
         parent instances.  'objs' must be a homogenous iterable collection of
@@ -143,12 +137,12 @@ class Collector(object):
                 else:
                     # FIXME factor this out so the admin can do select_related
                     # on it
-                    sub_objs = related.model._base_manager.using(using).filter(
+                    sub_objs = related.model._base_manager.using(self.using).filter(
                         **{"%s__in" % field.name: new_objs}
                     )
                     if not sub_objs:
                         continue
-                    field.rel.on_delete(self, field, sub_objs)
+                    field.rel.on_delete(self, field, sub_objs, self.using)
 
             for field in model._meta.many_to_many:
                 if not field.rel.through:
@@ -158,7 +152,7 @@ class Collector(object):
                         self.collect(field.value_from_object(obj).all(),
                                      source=model,
                                      source_attr=field.rel.related_name,
-                                     nullable=True, using=using)
+                                     nullable=True)
 
     def instances_with_model(self):
         for model, instances in self.data.iteritems():
@@ -183,7 +177,7 @@ class Collector(object):
                                 for model in sorted_models])
 
     @force_managed
-    def delete(self, using=None):
+    def delete(self):
         # sort instance collections
         for instances in self.data.itervalues():
             instances.sort(key=attrgetter("pk"))
@@ -196,14 +190,16 @@ class Collector(object):
         # send pre_delete signals
         for model, obj in self.instances_with_model():
             if not model._meta.auto_created:
-                signals.pre_delete.send(sender=model, instance=obj, using=using)
+                signals.pre_delete.send(
+                    sender=model, instance=obj, using=self.using
+                )
 
         # update fields
         for model, instances_for_fieldvalues in self.field_updates.iteritems():
             query = sql.UpdateQuery(model)
             for (field, value), instances in instances_for_fieldvalues.iteritems():
                 query.update_batch([obj.pk for obj in instances],
-                                   {field.name: value}, using)
+                                   {field.name: value}, self.using)
 
         # reverse instance collections
         for instances in self.data.itervalues():
@@ -213,19 +209,20 @@ class Collector(object):
         for model, batches in self.batches.iteritems():
             query = sql.DeleteQuery(model)
             for field, instances in batches.iteritems():
-                query.delete_batch([obj.pk for obj in instances], using, field)
+                query.delete_batch([obj.pk for obj in instances], self.using, field)
 
         # delete instances
         for model, instances in self.data.iteritems():
             query = sql.DeleteQuery(model)
             pk_list = [obj.pk for obj in instances]
-            query.delete_batch(pk_list, using)
+            query.delete_batch(pk_list, self.using)
 
         # send post_delete signals
         for model, obj in self.instances_with_model():
             if not model._meta.auto_created:
-                signals.post_delete.send(sender=model,
-                                         instance=obj, using=using)
+                signals.post_delete.send(
+                    sender=model, instance=obj, using=self.using
+                )
 
         # update collected instances
         for model, instances_for_fieldvalues in self.field_updates.iteritems():

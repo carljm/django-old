@@ -11,7 +11,8 @@ from django.db.models.query import Q
 from django.db.models.query_utils import DeferredAttribute
 from django.db.models.deletion import Collector
 from django.db.models.options import Options
-from django.db import connections, router, transaction, DatabaseError, DEFAULT_DB_ALIAS
+from django.db import (connections, router, transaction, DatabaseError,
+    DEFAULT_DB_ALIAS)
 from django.db.models import signals
 from django.db.models.loading import register_models, get_model
 from django.utils.translation import ugettext_lazy as _
@@ -566,9 +567,9 @@ class Model(object):
         using = using or router.db_for_write(self.__class__, instance=self)
         assert self._get_pk_val() is not None, "%s object can't be deleted because its %s attribute is set to None." % (self._meta.object_name, self._meta.pk.attname)
 
-        collector = Collector()
-        collector.collect([self], using=using)
-        collector.delete(using=using)
+        collector = Collector(using=using)
+        collector.collect([self])
+        collector.delete()
 
     delete.alters_data = True
 

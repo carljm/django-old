@@ -428,9 +428,9 @@ class QuerySet(object):
         del_query.query.select_related = False
         del_query.query.clear_ordering()
 
-        collector = Collector()
+        collector = Collector(using=del_query.db)
         collector.collect(del_query)
-        collector.delete(using=del_query.db)
+        collector.delete()
 
         # Clear the result cache, in case this QuerySet gets reused.
         self._result_cache = None
