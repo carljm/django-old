@@ -11,34 +11,34 @@ class OnDeleteTests(TestCase):
 
         a = create_a('auto')
         a.auto.delete()
-        self.failIf(A.objects.filter(name='auto').exists())
+        self.assertFalse(A.objects.filter(name='auto').exists())
 
         a = create_a('auto_nullable')
         a.auto_nullable.delete()
-        self.failIf(A.objects.filter(name='auto_nullable').exists())
+        self.assertFalse(A.objects.filter(name='auto_nullable').exists())
 
         a = create_a('setnull')
         a.setnull.delete()
         a = A.objects.get(pk=a.pk)
-        self.failUnlessEqual(None, a.setnull)
+        self.assertEqual(None, a.setnull)
 
         a = create_a('setdefault')
         a.setdefault.delete()
         a = A.objects.get(pk=a.pk)
-        self.failUnlessEqual(DEFAULT, a.setdefault)
+        self.assertEqual(DEFAULT, a.setdefault)
 
         a = create_a('setdefault_none')
         a.setdefault_none.delete()
         a = A.objects.get(pk=a.pk)
-        self.failUnlessEqual(None, a.setdefault_none)
+        self.assertEqual(None, a.setdefault_none)
 
         a = create_a('cascade')
         a.cascade.delete()
-        self.failIf(A.objects.filter(name='cascade').exists())
+        self.assertFalse(A.objects.filter(name='cascade').exists())
 
         a = create_a('cascade_nullable')
         a.cascade_nullable.delete()
-        self.failIf(A.objects.filter(name='cascade_nullable').exists())
+        self.assertFalse(A.objects.filter(name='cascade_nullable').exists())
 
         a = create_a('protect')
         self.assertRaises(IntegrityError, a.protect.delete)
@@ -53,43 +53,43 @@ class OnDeleteTests(TestCase):
         a = create_a('do_nothing')
         a.donothing.delete()
         a = A.objects.get(pk=a.pk)
-        self.failUnlessEqual(replacement_r, a.donothing)
+        self.assertEqual(replacement_r, a.donothing)
         models.signals.pre_delete.disconnect(check_do_nothing)
 
         A.objects.all().update(protect=None, donothing=None)
         R.objects.all().delete()
-        self.failIf(A.objects.exists())
+        self.assertFalse(A.objects.exists())
 
     def test_m2m(self):
         m = M.objects.create()
         r = R.objects.create()
         MR.objects.create(m=m, r=r)
         r.delete()
-        self.failIf(MR.objects.exists())
+        self.assertFalse(MR.objects.exists())
 
         r = R.objects.create()
         MR.objects.create(m=m, r=r)
         m.delete()
-        self.failIf(MR.objects.exists())
+        self.assertFalse(MR.objects.exists())
 
         m = M.objects.create()
         r = R.objects.create()
         m.m2m.add(r)
         r.delete()
         through = M._meta.get_field('m2m').rel.through
-        self.failIf(through.objects.exists())
+        self.assertFalse(through.objects.exists())
 
         r = R.objects.create()
         m.m2m.add(r)
         m.delete()
-        self.failIf(through.objects.exists())
+        self.assertFalse(through.objects.exists())
 
         m = M.objects.create()
         r = R.objects.create()
         MRNull.objects.create(m=m, r=r)
         r.delete()
-        self.failIf(not MRNull.objects.exists())
-        self.failIf(m.m2m_through_null.exists())
+        self.assertFalse(not MRNull.objects.exists())
+        self.assertFalse(m.m2m_through_null.exists())
 
     def test_bulk(self):
         from django.db.models.sql.constants import GET_ITERATOR_CHUNK_SIZE
@@ -101,7 +101,7 @@ class OnDeleteTests(TestCase):
         # + 2 (delete `T` instances in batches)
         # + 1 (delete `s`)
         self.assertNumQueries(5, s.delete)
-        self.failIf(S.objects.exists())
+        self.assertFalse(S.objects.exists())
 
     def test_instance_update(self):
         deleted = []
@@ -120,11 +120,11 @@ class OnDeleteTests(TestCase):
         a.cascade.delete()
 
         for obj in deleted:
-            self.failUnlessEqual(None, obj.pk)
+            self.assertEqual(None, obj.pk)
 
         for pk_list in related_setnull_sets:
             for a in A.objects.filter(id__in=pk_list):
-                self.failUnlessEqual(None, a.setnull)
+                self.assertEqual(None, a.setnull)
 
         models.signals.pre_delete.disconnect(pre_delete)
 
@@ -147,9 +147,8 @@ class OnDeleteTests(TestCase):
         t1 = T.objects.create(pk=1, s=s1)
         t2 = T.objects.create(pk=2, s=s2)
         r.delete()
-        self.failUnlessEqual(pre_delete_order, [(T, 2), (T, 1), (S, 2), (S, 1), (R, 1)])
-        self.failUnlessEqual(post_delete_order, [(T, 1), (T, 2), (S, 1), (S, 2), (R, 1)])
+        self.assertEqual(pre_delete_order, [(T, 2), (T, 1), (S, 2), (S, 1), (R, 1)])
+        self.assertEqual(post_delete_order, [(T, 1), (T, 2), (S, 1), (S, 2), (R, 1)])
 
         models.signals.post_delete.disconnect(log_post_delete)
         models.signals.post_delete.disconnect(log_pre_delete)
-
