@@ -147,8 +147,12 @@ class OnDeleteTests(TestCase):
         t1 = T.objects.create(pk=1, s=s1)
         t2 = T.objects.create(pk=2, s=s2)
         r.delete()
-        self.assertEqual(pre_delete_order, [(T, 2), (T, 1), (S, 2), (S, 1), (R, 1)])
-        self.assertEqual(post_delete_order, [(T, 1), (T, 2), (S, 1), (S, 2), (R, 1)])
+        self.assertEqual(
+            pre_delete_order, [(T, 2), (T, 1), (S, 2), (S, 1), (R, 1)]
+        )
+        self.assertEqual(
+            post_delete_order, [(T, 1), (T, 2), (S, 1), (S, 2), (R, 1)]
+        )
 
         models.signals.post_delete.disconnect(log_post_delete)
         models.signals.post_delete.disconnect(log_pre_delete)
@@ -158,5 +162,12 @@ class OnDeleteTests(TestCase):
         u = User.objects.create(
             avatar=Avatar.objects.create()
         )
-        u = User.objects.get(pk=u.pk)
-        self.assertNumQueries(2, u.delete)
+        a = Avatar.objects.get(pk=u.avatar_id)
+        # 1 query to find the users for the avatar.
+        # 1 query to delete the user
+        # 1 query to delete the avatar
+        # The important thing is that when we can defer constarint checks there
+        # is no need to do an UPDATE on User.avatar to null it out.
+        self.assertNumQueries(3, a.delete)
+        self.assertFalse(User.objects.exists())
+        self.assertFalse(Avatar.objects.exists())
