@@ -1,8 +1,8 @@
-from django.test import TestCase
 from django.db import models, IntegrityError
+from django.test import TestCase, skipUnlessDBFeature
 
 from modeltests.on_delete.models import (R, S, T, U, A, M, MR, MRNull,
-                                         create_a, get_default_r)
+    create_a, get_default_r, User, Avatar)
 
 
 class OnDeleteTests(TestCase):
@@ -152,3 +152,11 @@ class OnDeleteTests(TestCase):
 
         models.signals.post_delete.disconnect(log_post_delete)
         models.signals.post_delete.disconnect(log_pre_delete)
+
+    @skipUnlessDBFeature("can_defer_constraint_checks")
+    def test_can_defer_constraint_checks(self):
+        u = User.objects.create(
+            avatar=Avatar.objects.create()
+        )
+        u = User.objects.get(pk=u.pk)
+        self.assertNumQueries(2, u.delete)
