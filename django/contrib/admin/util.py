@@ -118,13 +118,13 @@ def get_deleted_objects(objs, opts, user, admin_site, levels_to_root=4):
 
 
 class NestedObjects(Collector):
-    def __init__(self):
-        super(NestedObjects, self).__init__()
+    def __init__(self, *args, **kwargs):
+        super(NestedObjects, self).__init__(*args, **kwargs)
         self.edges = {} # {from_instance: [to_instances]}
-        
+
     def add_edge(self, source, target):
         self.edges.setdefault(source, []).append(target)
-        
+
     def collect(self, objs, source_attr=None, **kwargs):
         for obj in objs:
             if source_attr:

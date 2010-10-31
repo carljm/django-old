@@ -6,7 +6,7 @@ from django.contrib.admin.util import display_for_field, label_for_field, lookup
 from django.contrib.admin.util import NestedObjects
 from django.contrib.admin.views.main import EMPTY_CHANGELIST_VALUE
 from django.contrib.sites.models import Site
-from django.db import models
+from django.db import models, DEFAULT_DB_ALIAS
 from django.test import TestCase
 from django.utils import unittest
 from django.utils.formats import localize
@@ -20,7 +20,7 @@ class NestedObjectsTests(TestCase):
 
     """
     def setUp(self):
-        self.n = NestedObjects()
+        self.n = NestedObjects(using=DEFAULT_DB_ALIAS)
         self.objs = [Count.objects.create(num=i) for i in range(5)]
 
     def _check(self, target):
@@ -29,7 +29,7 @@ class NestedObjectsTests(TestCase):
     def _connect(self, i, j):
         self.objs[i].parent = self.objs[j]
         self.objs[i].save()
-        
+
     def _collect(self, *indices):
         self.n.collect([self.objs[i] for i in indices])
 
