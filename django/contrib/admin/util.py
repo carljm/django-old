@@ -89,10 +89,10 @@ def _format_callback(obj, user, admin_site, levels_to_root, perms_needed):
         return u'%s: %s' % (capfirst(opts.verbose_name),
                             force_unicode(obj))
 
-def get_deleted_objects(objs, opts, user, admin_site, levels_to_root=4):
+def get_deleted_objects(objs, opts, user, admin_site, using, levels_to_root=4):
     """
-    Find all objects related to ``objs`` that should also be
-    deleted. ``objs`` should be an iterable of objects.
+    Find all objects related to ``objs`` that should also be deleted. ``objs``
+    must be a homogenous iterable of objects (e.g. a QuerySet).
 
     Returns a nested list of strings suitable for display in the
     template with the ``unordered_list`` filter.
@@ -105,7 +105,7 @@ def get_deleted_objects(objs, opts, user, admin_site, levels_to_root=4):
     method uses this function also from a change_list view.
     This will not be used if we can reverse the URL.
     """
-    collector = NestedObjects()
+    collector = NestedObjects(using=using)
     collector.collect(objs)
     perms_needed = set()
     to_delete = collector.nested(_format_callback,
