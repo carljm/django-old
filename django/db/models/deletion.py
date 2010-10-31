@@ -135,11 +135,7 @@ class Collector(object):
                 if field.rel.is_hidden():
                     self.add_batch(related.model, field, new_objs)
                 else:
-                    # FIXME factor this out so the admin can do select_related
-                    # on it
-                    sub_objs = related.model._base_manager.using(self.using).filter(
-                        **{"%s__in" % field.name: new_objs}
-                    )
+                    sub_objs = self.related_objects(related, new_objs)
                     if not sub_objs:
                         continue
                     field.rel.on_delete(self, field, sub_objs, self.using)
@@ -153,6 +149,15 @@ class Collector(object):
                                      source=model,
                                      source_attr=field.rel.related_name,
                                      nullable=True)
+
+    def related_objects(self, related, objs):
+        """
+        Gets a QuerySet of objects related to ``objs`` via the relation ``related``.
+
+        """
+        return related.model._base_manager.using(self.using).filter(
+            **{"%s__in" % related.field.name: objs}
+        )
 
     def instances_with_model(self):
         for model, instances in self.data.iteritems():

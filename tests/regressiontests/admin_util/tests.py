@@ -57,6 +57,14 @@ class NestedObjectsTests(TestCase):
         self._collect(0)
         self._check([0, [1, [2]]])
 
+    def test_queries(self):
+        self._connect(1, 0)
+        self._connect(2, 0)
+        # 1 query to fetch all children of 0 (1 and 2)
+        # 1 query to fetch all children of 1 and 2 (none)
+        # Should not require additional queries to populate the nested graph.
+        self.assertNumQueries(2, self._collect, 0)
+
 class UtilTests(unittest.TestCase):
     def test_values_from_lookup_field(self):
         """
