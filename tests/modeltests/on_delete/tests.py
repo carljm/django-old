@@ -1,5 +1,5 @@
 from django.db import models, IntegrityError
-from django.test import TestCase, skipUnlessDBFeature
+from django.test import TestCase, skipUnlessDBFeature, skipIfDBFeature
 
 from modeltests.on_delete.models import (R, S, T, U, A, M, MR, MRNull,
     create_a, get_default_r, User, Avatar)
@@ -166,8 +166,22 @@ class OnDeleteTests(TestCase):
         # 1 query to find the users for the avatar.
         # 1 query to delete the user
         # 1 query to delete the avatar
-        # The important thing is that when we can defer constarint checks there
+        # The important thing is that when we can defer constraint checks there
         # is no need to do an UPDATE on User.avatar to null it out.
         self.assertNumQueries(3, a.delete)
+        self.assertFalse(User.objects.exists())
+        self.assertFalse(Avatar.objects.exists())
+
+    @skipIfDBFeature("can_defer_constraint_checks")
+    def test_cannot_defer_constraint_checks(self):
+        u = User.objects.create(
+            avatar=Avatar.objects.create()
+        )
+        a = Avatar.objects.get(pk=u.avatar_id)
+        # 1 query to find the users for the avatar.
+        # 1 query to delete the user
+        # 1 query to null out user.avatar, because we can't defer the constraint
+        # 1 query to delete the avatar
+        self.assertNumQueries(4, a.delete)
         self.assertFalse(User.objects.exists())
         self.assertFalse(Avatar.objects.exists())
