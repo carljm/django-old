@@ -78,3 +78,16 @@ class Mineral(models.Model):
 
     def __unicode__(self):
         return self.name
+
+class Vote(models.Model):
+    """
+    A model demonstrating GenericForeignKey's on_delete argument.
+
+    """
+    content_type = models.ForeignKey(ContentType, blank=True, null=True)
+    object_id = models.PositiveIntegerField(blank=True, null=True)
+
+    content_object = generic.GenericForeignKey(on_delete=generic.SET_NULL)
+
+class VotableItem(models.Model):
+    votes = generic.GenericRelation(Vote)

@@ -13,15 +13,41 @@ from django.forms.models import BaseModelFormSet, modelformset_factory, save_ins
 from django.contrib.admin.options import InlineModelAdmin, flatten_fieldsets
 from django.utils.encoding import smart_unicode
 
+def _related_objects(relation, objs, using):
+    from django.contrib.contenttypes.models import ContentType
+
+    return relation.rel.to._base_manager.db_manager(using).filter(**{
+        "%s__pk" % relation.content_type_field_name:
+            ContentType.objects.db_manager(using).get_for_model(relation.model).pk,
+        "%s__in" % relation.object_id_field_name:
+            [obj.pk for obj in objs]
+        })
+
+
+def CASCADE(collector, relation, objs, using):
+    sub_objs = _related_objects(relation, objs, using)
+
+    collector.collect(sub_objs, source=relation.model, nullable=True)
+
+
+def SET_NULL(collector, relation, objs, using):
+    sub_objs = _related_objects(relation, objs, using)
+
+    collector.add_field_update(relation.rel.to._meta.get_field(relation.content_type_field_name), None, sub_objs)
+    collector.add_field_update(relation.rel.to._meta.get_field(relation.object_id_field_name), None, sub_objs)
+
+
 class GenericForeignKey(object):
     """
     Provides a generic relation to any object through content-type/object-id
     fields.
     """
 
-    def __init__(self, ct_field="content_type", fk_field="object_id"):
+    def __init__(self, ct_field="content_type", fk_field="object_id",
+                 on_delete=CASCADE):
         self.ct_field = ct_field
         self.fk_field = fk_field
+        self.on_delete = on_delete
 
     def contribute_to_class(self, cls, name):
         self.name = name
@@ -105,7 +131,6 @@ class GenericRelation(RelatedField, Field):
                             limit_choices_to=kwargs.pop('limit_choices_to', None),
                             symmetrical=kwargs.pop('symmetrical', True))
 
-
         # Override content-type/object-id field names on the related class
         self.object_id_field_name = kwargs.pop("object_id_field", "object_id")
         self.content_type_field_name = kwargs.pop("content_type_field", "content_type")
@@ -114,6 +139,16 @@ class GenericRelation(RelatedField, Field):
         kwargs['editable'] = False
         kwargs['serialize'] = False
         Field.__init__(self, **kwargs)
+
+
+    def _on_delete(self):
+        # Find on_delete attribute of related GenericForeignKey
+        for field in self.rel.to._meta.virtual_fields:
+            if (isinstance(field, GenericForeignKey) and
+                field.ct_field == self.content_type_field_name and
+                field.fk_field == self.object_id_field_name):
+                return field.on_delete
+    on_delete = property(_on_delete)
 
     def get_choices_default(self):
         return Field.get_choices(self, include_blank=False)

@@ -140,15 +140,16 @@ class Collector(object):
                         continue
                     field.rel.on_delete(self, field, sub_objs, self.using)
 
-            for field in model._meta.many_to_many:
-                if not field.rel.through:
-                    # m2m-ish but with no through table? GenericRelation
-                    for obj in new_objs:
-                        # FIXME GenericRelation should have on_delete
-                        self.collect(field.value_from_object(obj).all(),
-                                     source=model,
-                                     source_attr=field.rel.related_name,
-                                     nullable=True)
+            for m2m in model._meta.many_to_many:
+                try:
+                    # hook for m2ms and m2mish things (GenericRelation) to
+                    # provide custom on_delete behavior.
+                    on_delete = m2m.on_delete
+                except AttributeError:
+                    continue
+
+                if on_delete:
+                    on_delete(self, m2m, new_objs, self.using)
 
     def related_objects(self, related, objs):
         """

@@ -3,7 +3,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
 from models import (TaggedItem, ValuableTaggedItem, Comparison, Animal,
-    Vegetable, Mineral)
+    Vegetable, Mineral, Vote, VotableItem)
 
 
 class GenericRelationsTests(TestCase):
@@ -221,3 +221,11 @@ class GenericRelationsTests(TestCase):
         formset = GenericFormSet(instance=lion, prefix='x')
         self.assertEqual(u''.join(form.as_p() for form in formset.forms), u"""<p><label for="id_x-0-tag">Tag:</label> <input id="id_x-0-tag" type="text" name="x-0-tag" maxlength="50" /></p>
 <p><label for="id_x-0-DELETE">Delete:</label> <input type="checkbox" name="x-0-DELETE" id="id_x-0-DELETE" /><input type="hidden" name="x-0-id" id="id_x-0-id" /></p>""")
+
+    def test_on_delete(self):
+        votable = VotableItem.objects.create()
+        Vote.objects.create(content_object=votable)
+
+        votable.delete()
+
+        self.assertEqual(Vote.objects.get().content_object, None)
