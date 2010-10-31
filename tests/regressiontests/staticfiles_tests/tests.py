@@ -7,12 +7,13 @@ from StringIO import StringIO
 
 from django.test import TestCase
 from django.conf import settings
+from django.contrib.staticfiles import finders, storage
+from django.core.files.storage import default_storage
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.db.models.loading import load_app
 from django.template import Template, Context
 
-from django.contrib.staticfiles import finders, storage
 
 TEST_ROOT = os.path.dirname(__file__)
 
@@ -26,11 +27,11 @@ class StaticFilesTestCase(TestCase):
         self.old_staticfiles_root = settings.STATICFILES_ROOT
         self.old_staticfiles_dirs = settings.STATICFILES_DIRS
         self.old_staticfiles_finders = settings.STATICFILES_FINDERS
-        self.old_installed_apps = settings.INSTALLED_APPS
         self.old_media_root = settings.MEDIA_ROOT
         self.old_media_url = settings.MEDIA_URL
         self.old_admin_media_prefix = settings.ADMIN_MEDIA_PREFIX
         self.old_debug = settings.DEBUG
+        self.old_installed_apps = settings.INSTALLED_APPS
 
         # We have to load these apps to test staticfiles.
         load_app('regressiontests.staticfiles_tests.apps.test')
@@ -50,6 +51,14 @@ class StaticFilesTestCase(TestCase):
             'django.contrib.staticfiles.finders.AppDirectoriesFinder',
             'django.contrib.staticfiles.finders.DefaultStorageFinder',
         )
+        settings.INSTALLED_APPS = [
+            "regressiontests.staticfiles_tests",
+        ]
+
+        # Clear the cached default_storage out, this is because when it first
+        # gets accessed (by some other test), it evaluates settings.MEDIA_ROOT,
+        # since we're planning on changing that we need to clear out the cache.
+        default_storage._wrapped = None
 
     def tearDown(self):
         settings.DEBUG = self.old_debug
@@ -98,7 +107,11 @@ class BuildStaticTestCase(StaticFilesTestCase):
     def _get_file(self, filepath):
         assert filepath, 'filepath is empty.'
         filepath = os.path.join(settings.STATICFILES_ROOT, filepath)
-        return open(filepath).read()
+        f = open(filepath)
+        try:
+            return f.read()
+        finally:
+            f.close()
 
 
 class TestDefaults(object):
