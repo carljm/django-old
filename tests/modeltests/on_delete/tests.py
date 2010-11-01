@@ -2,7 +2,7 @@ from django.db import models, IntegrityError
 from django.test import TestCase, skipUnlessDBFeature, skipIfDBFeature
 
 from modeltests.on_delete.models import (R, S, T, U, A, M, MR, MRNull,
-    create_a, get_default_r, User, Avatar)
+    create_a, get_default_r, User, Avatar, HiddenUser, HiddenUserProfile)
 
 
 class OnDeleteTests(TestCase):
@@ -195,3 +195,11 @@ class OnDeleteTests(TestCase):
         self.assertNumQueries(4, a.delete)
         self.assertFalse(User.objects.exists())
         self.assertFalse(Avatar.objects.exists())
+
+    def test_hidden_related(self):
+        r = R.objects.create()
+        h = HiddenUser.objects.create(r=r)
+        p = HiddenUserProfile.objects.create(user=h)
+
+        r.delete()
+        self.assertEqual(HiddenUserProfile.objects.count(), 0)

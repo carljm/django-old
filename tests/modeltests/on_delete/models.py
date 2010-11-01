@@ -83,3 +83,11 @@ class Avatar(models.Model):
 
 class User(models.Model):
     avatar = models.ForeignKey(Avatar, null=True)
+
+
+class HiddenUser(models.Model):
+    r = models.ForeignKey(R, related_name="+")
+
+
+class HiddenUserProfile(models.Model):
+    user = models.ForeignKey(HiddenUser)
