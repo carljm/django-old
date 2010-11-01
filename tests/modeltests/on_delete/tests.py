@@ -17,6 +17,11 @@ class OnDeleteTests(TestCase):
         a.auto_nullable.delete()
         self.assertFalse(A.objects.filter(name='auto_nullable').exists())
 
+        a = create_a('setvalue')
+        a.setvalue.delete()
+        a = A.objects.get(pk=a.pk)
+        self.assertEqual(DEFAULT, a.setvalue)
+
         a = create_a('setnull')
         a.setnull.delete()
         a = A.objects.get(pk=a.pk)
@@ -55,6 +60,11 @@ class OnDeleteTests(TestCase):
         a = A.objects.get(pk=a.pk)
         self.assertEqual(replacement_r, a.donothing)
         models.signals.pre_delete.disconnect(check_do_nothing)
+
+        a = create_a('o2o_setnull')
+        a.o2o_setnull.delete()
+        a = A.objects.get(pk=a.pk)
+        self.assertEqual(None, a.o2o_setnull)
 
         A.objects.all().update(protect=None, donothing=None)
         R.objects.all().delete()

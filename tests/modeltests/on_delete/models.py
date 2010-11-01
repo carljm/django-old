@@ -25,6 +25,8 @@ class A(models.Model):
     auto = models.ForeignKey(R, related_name="auto_set")
     auto_nullable = models.ForeignKey(R, null=True,
         related_name='auto_nullable_set')
+    setvalue = models.ForeignKey(R, on_delete=models.SET(get_default_r),
+        related_name='setvalue')
     setnull = models.ForeignKey(R, on_delete=models.SET_NULL, null=True,
         related_name='setnull_set')
     setdefault = models.ForeignKey(R, on_delete=models.SET_DEFAULT,
@@ -39,13 +41,23 @@ class A(models.Model):
     donothing = models.ForeignKey(R, on_delete=models.DO_NOTHING, null=True,
         related_name='donothing_set')
 
+    # A OneToOneField is just a ForeignKey unique=True, so we don't duplicate
+    # all the tests; just one smoke test to ensure on_delete works for it as
+    # well.
+    o2o_setnull = models.ForeignKey(R, null=True,
+        on_delete=models.SET_NULL, related_name="o2o_nullable_set")
+
+
 def create_a(name):
     a = A(name=name)
-    for name in ('auto', 'auto_nullable', 'setnull', 'setdefault', 'setdefault_none', 'cascade', 'cascade_nullable', 'protect', 'donothing'):
+    for name in ('auto', 'auto_nullable', 'setvalue', 'setnull', 'setdefault',
+                 'setdefault_none', 'cascade', 'cascade_nullable', 'protect',
+                 'donothing', 'o2o_setnull'):
         r = R.objects.create()
         setattr(a, name, r)
     a.save()
     return a
+
 
 class M(models.Model):
     m2m = models.ManyToManyField(R, related_name="m_set")
@@ -54,9 +66,11 @@ class M(models.Model):
     m2m_through_null = models.ManyToManyField(R, through="MRNull",
         related_name="m_through_null_set")
 
+
 class MR(models.Model):
     m = models.ForeignKey(M)
     r = models.ForeignKey(R)
+
 
 class MRNull(models.Model):
     m = models.ForeignKey(M)
@@ -65,6 +79,7 @@ class MRNull(models.Model):
 
 class Avatar(models.Model):
     pass
+
 
 class User(models.Model):
     avatar = models.ForeignKey(Avatar, null=True)
