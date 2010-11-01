@@ -136,7 +136,7 @@ class Collector(object):
         if collect_related:
             for related in model._meta.get_all_related_objects(include_hidden=True):
                 field = related.field
-                if field.rel.is_hidden():
+                if related.model._meta.auto_created:
                     self.add_batch(related.model, field, new_objs)
                 else:
                     sub_objs = self.related_objects(related, new_objs)
