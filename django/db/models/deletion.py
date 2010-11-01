@@ -21,7 +21,11 @@ def PROTECT(collector, field, sub_objs, using):
 
 def SET(value):
     def set_on_delete(collector, field, sub_objs, using):
-        collector.add_field_update(field, value, sub_objs)
+        if callable(value):
+            val = value()
+        else:
+            val = value
+        collector.add_field_update(field, val, sub_objs)
     return set_on_delete
 
 SET_NULL = SET(None)

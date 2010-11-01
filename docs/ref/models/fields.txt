@@ -966,9 +966,16 @@ define the details of how the relation works.
       default value; a default for the :class:`ForeignKey` must be set.
 
     * :func:`~django.db.models.SET()`: Set the :class:`ForeignKey` to the value
-      passed to :func:`~django.db.models.SET()`::
+      passed to :func:`~django.db.models.SET()`, or if a callable is passed in,
+      the result of calling it. In most cases, passing a callable will be
+      necessary to avoid executing queries at the time your models.py is
+      imported::
 
-        user = models.ForeignKey(User, on_delete=models.SET(some_user))
+        def get_sentinel_user():
+            return User.objects.get_or_create(username='deleted')[0]
+
+        class MyModel(models.Model):
+            user = models.ForeignKey(User, on_delete=models.SET(get_sentinel_user))
 
     * :attr:`~django.db.models.DO_NOTHING`: Take no action. If your database
       backend enforces referential integrity, this will cause an

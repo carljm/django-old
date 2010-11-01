@@ -25,6 +25,8 @@ class A(models.Model):
     auto = models.ForeignKey(R, related_name="auto_set")
     auto_nullable = models.ForeignKey(R, null=True,
         related_name='auto_nullable_set')
+    setvalue = models.ForeignKey(R, on_delete=models.SET(get_default_r),
+        related_name='setvalue')
     setnull = models.ForeignKey(R, on_delete=models.SET_NULL, null=True,
         related_name='setnull_set')
     setdefault = models.ForeignKey(R, on_delete=models.SET_DEFAULT,
@@ -48,9 +50,9 @@ class A(models.Model):
 
 def create_a(name):
     a = A(name=name)
-    for name in ('auto', 'auto_nullable', 'setnull', 'setdefault',
-                 'setdefault_none', 'cascade', 'cascade_nullable',
-                 'protect', 'donothing', 'o2o_setnull'):
+    for name in ('auto', 'auto_nullable', 'setvalue', 'setnull', 'setdefault',
+                 'setdefault_none', 'cascade', 'cascade_nullable', 'protect',
+                 'donothing', 'o2o_setnull'):
         r = R.objects.create()
         setattr(a, name, r)
     a.save()
