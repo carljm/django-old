@@ -11,6 +11,7 @@ from django.utils.translation import ungettext
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.utils.datastructures import SortedDict
 
+
 def quote(s):
     """
     Ensure that primary key values do not confuse the admin URLs by escaping
@@ -26,6 +27,7 @@ def quote(s):
         if c in """:/_#?;@&=+$,"<>%\\""":
             res[i] = '_%02X' % ord(c)
     return ''.join(res)
+
 
 def unquote(s):
     """
@@ -47,6 +49,7 @@ def unquote(s):
             myappend('_' + item)
     return "".join(res)
 
+
 def flatten_fieldsets(fieldsets):
     """Returns a list of field names from an admin fieldsets structure."""
     field_names = []
@@ -60,7 +63,7 @@ def flatten_fieldsets(fieldsets):
     return field_names
 
 
-def get_deleted_objects(objs, opts, user, admin_site, using, levels_to_root=4):
+def get_deleted_objects(objs, opts, user, admin_site, using):
     """
     Find all objects related to ``objs`` that should also be deleted. ``objs``
     must be a homogenous iterable of objects (e.g. a QuerySet).
@@ -68,13 +71,6 @@ def get_deleted_objects(objs, opts, user, admin_site, using, levels_to_root=4):
     Returns a nested list of strings suitable for display in the
     template with the ``unordered_list`` filter.
 
-    `levels_to_root` defines the number of directories (../) to reach
-    the admin root path. In a change_view this is 4, in a change_list
-    view 2.
-
-    This is for backwards compatibility since the options.delete_selected
-    method uses this function also from a change_list view.
-    This will not be used if we can reverse the URL.
     """
     collector = NestedObjects(using=using)
     collector.collect(objs)
@@ -83,18 +79,13 @@ def get_deleted_objects(objs, opts, user, admin_site, using, levels_to_root=4):
     def format_callback(obj):
         has_admin = obj.__class__ in admin_site._registry
         opts = obj._meta
-        try:
+
+        if has_admin:
             admin_url = reverse('%s:%s_%s_change'
                                 % (admin_site.name,
                                    opts.app_label,
                                    opts.object_name.lower()),
                                 None, (quote(obj._get_pk_val()),))
-        except NoReverseMatch:
-            admin_url = '%s%s/%s/%s/' % ('../'*levels_to_root,
-                                         opts.app_label,
-                                         opts.object_name.lower(),
-                                         quote(obj._get_pk_val()))
-        if has_admin:
             p = '%s.%s' % (opts.app_label,
                            opts.get_delete_permission())
             if not user.has_perm(p):
@@ -181,6 +172,7 @@ def model_format_dict(obj):
         'verbose_name_plural': force_unicode(opts.verbose_name_plural)
     }
 
+
 def model_ngettext(obj, n=None):
     """
     Return the appropriate `verbose_name` or `verbose_name_plural` value for
@@ -198,6 +190,7 @@ def model_ngettext(obj, n=None):
     d = model_format_dict(obj)
     singular, plural = d["verbose_name"], d["verbose_name_plural"]
     return ungettext(singular, plural, n or 0)
+
 
 def lookup_field(name, obj, model_admin=None):
     opts = obj._meta
@@ -224,6 +217,7 @@ def lookup_field(name, obj, model_admin=None):
         attr = None
         value = getattr(obj, name)
     return f, attr, value
+
 
 def label_for_field(name, model, model_admin=None, return_attr=False):
     attr = None
