@@ -59,35 +59,6 @@ def flatten_fieldsets(fieldsets):
                 field_names.append(field)
     return field_names
 
-def _format_callback(obj, user, admin_site, levels_to_root, perms_needed):
-    has_admin = obj.__class__ in admin_site._registry
-    opts = obj._meta
-    try:
-        admin_url = reverse('%s:%s_%s_change'
-                            % (admin_site.name,
-                               opts.app_label,
-                               opts.object_name.lower()),
-                            None, (quote(obj._get_pk_val()),))
-    except NoReverseMatch:
-        admin_url = '%s%s/%s/%s/' % ('../'*levels_to_root,
-                                     opts.app_label,
-                                     opts.object_name.lower(),
-                                     quote(obj._get_pk_val()))
-    if has_admin:
-        p = '%s.%s' % (opts.app_label,
-                       opts.get_delete_permission())
-        if not user.has_perm(p):
-            perms_needed.add(opts.verbose_name)
-        # Display a link to the admin page.
-        return mark_safe(u'%s: <a href="%s">%s</a>' %
-                         (escape(capfirst(opts.verbose_name)),
-                          admin_url,
-                          escape(obj)))
-    else:
-        # Don't display link to edit, because it either has no
-        # admin or is edited inline.
-        return u'%s: %s' % (capfirst(opts.verbose_name),
-                            force_unicode(obj))
 
 def get_deleted_objects(objs, opts, user, admin_site, using, levels_to_root=4):
     """
@@ -108,11 +79,38 @@ def get_deleted_objects(objs, opts, user, admin_site, using, levels_to_root=4):
     collector = NestedObjects(using=using)
     collector.collect(objs)
     perms_needed = set()
-    to_delete = collector.nested(_format_callback,
-                                 user=user,
-                                 admin_site=admin_site,
-                                 levels_to_root=levels_to_root,
-                                 perms_needed=perms_needed)
+
+    def format_callback(obj):
+        has_admin = obj.__class__ in admin_site._registry
+        opts = obj._meta
+        try:
+            admin_url = reverse('%s:%s_%s_change'
+                                % (admin_site.name,
+                                   opts.app_label,
+                                   opts.object_name.lower()),
+                                None, (quote(obj._get_pk_val()),))
+        except NoReverseMatch:
+            admin_url = '%s%s/%s/%s/' % ('../'*levels_to_root,
+                                         opts.app_label,
+                                         opts.object_name.lower(),
+                                         quote(obj._get_pk_val()))
+        if has_admin:
+            p = '%s.%s' % (opts.app_label,
+                           opts.get_delete_permission())
+            if not user.has_perm(p):
+                perms_needed.add(opts.verbose_name)
+            # Display a link to the admin page.
+            return mark_safe(u'%s: <a href="%s">%s</a>' %
+                             (escape(capfirst(opts.verbose_name)),
+                              admin_url,
+                              escape(obj)))
+        else:
+            # Don't display link to edit, because it either has no
+            # admin or is edited inline.
+            return u'%s: %s' % (capfirst(opts.verbose_name),
+                                force_unicode(obj))
+
+    to_delete = collector.nested(format_callback)
 
     return to_delete, perms_needed
 
@@ -137,32 +135,30 @@ class NestedObjects(Collector):
         qs = super(NestedObjects, self).related_objects(related, objs)
         return qs.select_related(related.field.name)
 
-    def _nested(self, obj, seen, format_callback, kwargs):
+    def _nested(self, obj, seen, format_callback):
         if obj in seen:
             return []
         seen.add(obj)
         children = []
         for child in self.edges.get(obj, ()):
-            children.extend(self._nested(child, seen, format_callback, kwargs))
+            children.extend(self._nested(child, seen, format_callback))
         if format_callback:
-            ret = [format_callback(obj, **kwargs)]
+            ret = [format_callback(obj)]
         else:
             ret = [obj]
         if children:
             ret.append(children)
         return ret
 
-    def nested(self, format_callback=None, **kwargs):
+    def nested(self, format_callback=None):
         """
         Return the graph as a nested list.
-
-        Passes **kwargs back to the format_callback as kwargs.
 
         """
         seen = set()
         roots = []
         for root in self.edges.get(None, ()):
-            roots.extend(self._nested(root, seen, format_callback, kwargs))
+            roots.extend(self._nested(root, seen, format_callback))
         return roots
 
 
