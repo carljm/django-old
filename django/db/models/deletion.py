@@ -6,6 +6,14 @@ from django.db.models.sql.constants import GET_ITERATOR_CHUNK_SIZE
 from django.utils.datastructures import SortedDict
 from django.utils.functional import wraps
 
+# TODO: validation for GenericRelation on_delete
+# TODO: tests for GenericRelation on_delete
+
+# field.rel.to: model currently being processed - relation.model
+# field.name: field name from FK side - relation.gfk.name
+# field.null: whether relation is nullable - relation.gfk.null
+# field.get_default(): default value for FK - defaults for relation.gfk.ct_field, fk_field
+# generic way to call collector.add_field_update - for both ct_field and fk_field
 
 def CASCADE(collector, field, sub_objs, using):
     collector.collect(sub_objs, source=field.rel.to,
