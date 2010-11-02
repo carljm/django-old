@@ -1002,6 +1002,10 @@ class ManyToManyField(RelatedField, Field):
         if kwargs['rel'].through is not None:
             assert self.db_table is None, "Cannot specify a db_table if an intermediary model is used."
 
+        # Normal m2ms don't need anything to happen on_delete because their
+        # through tables get cascaded via their regular FKs.
+        self.on_delete = None
+
         Field.__init__(self, **kwargs)
 
         msg = _('Hold down "Control", or "Command" on a Mac, to select more than one.')

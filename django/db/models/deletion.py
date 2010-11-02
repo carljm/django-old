@@ -13,11 +13,13 @@ def CASCADE(collector, field, sub_objs, using):
     if field.null and not connections[using].features.can_defer_constraint_checks:
         collector.add_field_update(field, None, sub_objs)
 
+
 def PROTECT(collector, field, sub_objs, using):
     raise IntegrityError("Cannot delete some instances of model '%s' because "
         "they are referenced through a protected foreign key: '%s.%s'" % (
             field.rel.to.__name__, sub_objs[0].__class__.__name__, field.name
     ))
+
 
 def SET(value):
     def set_on_delete(collector, field, sub_objs, using):
@@ -28,13 +30,17 @@ def SET(value):
         collector.add_field_update(field, val, sub_objs)
     return set_on_delete
 
+
 SET_NULL = SET(None)
+
 
 def SET_DEFAULT(collector, field, sub_objs, using):
     collector.add_field_update(field, field.get_default(), sub_objs)
 
+
 def DO_NOTHING(collector, field, sub_objs, using):
     pass
+
 
 def force_managed(func):
     @wraps(func)
@@ -54,6 +60,7 @@ def force_managed(func):
             if forced_managed:
                 transaction.leave_transaction_management(using=self.using)
     return decorated
+
 
 class Collector(object):
     def __init__(self, using):
@@ -145,15 +152,11 @@ class Collector(object):
                     field.rel.on_delete(self, field, sub_objs, self.using)
 
             for m2m in model._meta.many_to_many:
-                try:
-                    # hook for m2ms and m2mish things (GenericRelation) to
-                    # provide custom on_delete behavior.
-                    on_delete = m2m.on_delete
-                except AttributeError:
-                    continue
-
-                if on_delete:
-                    on_delete(self, m2m, new_objs, self.using)
+                # hook for m2mish things (GenericRelation) to
+                # provide custom on_delete behavior.
+                if m2m.on_delete:
+                    sub_objs = m2m.bulk_related_objects(new_objs, self.using)
+                    m2m.on_delete(self, m2m, sub_objs, self.using)
 
     def related_objects(self, related, objs):
         """

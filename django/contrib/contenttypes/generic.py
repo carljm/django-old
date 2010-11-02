@@ -3,9 +3,8 @@ Classes allowing "generic" relations through ContentType and object-id fields.
 """
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.db import connection
 from django.db.models import signals
-from django.db import models, router
+from django.db import connection, models, router, DEFAULT_DB_ALIAS
 from django.db.models.fields.related import RelatedField, Field, ManyToManyRel
 from django.db.models.loading import get_model
 from django.forms import ModelForm
@@ -13,26 +12,14 @@ from django.forms.models import BaseModelFormSet, modelformset_factory, save_ins
 from django.contrib.admin.options import InlineModelAdmin, flatten_fieldsets
 from django.utils.encoding import smart_unicode
 
-def _related_objects(relation, objs, using):
-    from django.contrib.contenttypes.models import ContentType
-
-    return relation.rel.to._base_manager.db_manager(using).filter(**{
-        "%s__pk" % relation.content_type_field_name:
-            ContentType.objects.db_manager(using).get_for_model(relation.model).pk,
-        "%s__in" % relation.object_id_field_name:
-            [obj.pk for obj in objs]
-        })
+from django.contrib.contenttypes.models import ContentType
 
 
-def CASCADE(collector, relation, objs, using):
-    sub_objs = _related_objects(relation, objs, using)
-
+def CASCADE(collector, relation, sub_objs, using):
     collector.collect(sub_objs, source=relation.model, nullable=True)
 
 
-def SET_NULL(collector, relation, objs, using):
-    sub_objs = _related_objects(relation, objs, using)
-
+def SET_NULL(collector, relation, sub_objs, using):
     collector.add_field_update(relation.rel.to._meta.get_field(relation.content_type_field_name), None, sub_objs)
     collector.add_field_update(relation.rel.to._meta.get_field(relation.object_id_field_name), None, sub_objs)
 
@@ -142,13 +129,30 @@ class GenericRelation(RelatedField, Field):
 
 
     def _on_delete(self):
-        # Find on_delete attribute of related GenericForeignKey
+        if self.gfk is not None:
+            return self.gfk.on_delete
+    on_delete = property(_on_delete)
+
+    def _gfk(self):
+        # Find related GenericForeignKey
         for field in self.rel.to._meta.virtual_fields:
             if (isinstance(field, GenericForeignKey) and
                 field.ct_field == self.content_type_field_name and
                 field.fk_field == self.object_id_field_name):
-                return field.on_delete
-    on_delete = property(_on_delete)
+                return field
+    gfk = property(_gfk)
+
+    def bulk_related_objects(self, objs, using=DEFAULT_DB_ALIAS):
+        """
+        Return all objects related to ``objs`` via this ``GenericRelation``.
+
+        """
+        return self.rel.to._base_manager.db_manager(using).filter(**{
+                "%s__pk" % self.content_type_field_name:
+                    ContentType.objects.db_manager(using).get_for_model(self.model).pk,
+                "%s__in" % self.object_id_field_name:
+                    [obj.pk for obj in objs]
+                })
 
     def get_choices_default(self):
         return Field.get_choices(self, include_blank=False)
