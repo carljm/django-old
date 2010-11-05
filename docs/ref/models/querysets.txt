@@ -1277,8 +1277,10 @@ This cascade behavior is customizable via the
 :class:`~django.db.models.ForeignKey`.
 
 The ``delete()`` method does a bulk delete and does not call any ``delete()``
-methods on your models. It does, however, emit the ``pre_delete`` and
-``post_delete`` signals for all deleted objects (including cascaded deletions).
+methods on your models. It does, however, emit the
+:data:`~django.db.models.signals.pre_delete` and
+:data:`~django.db.models.signals.post_delete` signals for all deleted objects
+(including cascaded deletions).
 
 .. _field-lookups:
 
