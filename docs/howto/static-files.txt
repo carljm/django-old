@@ -416,7 +416,7 @@ you'll need to make a few changes:
       ``staticfiles.storage.StaticFilesStorage``
 
     * If using :djadmin:`runserver` for local development, you no longer need
-      to add anything to your URLconf for serving static files in developmehnt.
+      to add anything to your URLconf for serving static files in development.
 
 Learn more
 ==========
