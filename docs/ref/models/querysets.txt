@@ -1272,9 +1272,10 @@ For example::
     # This will delete all Blogs and all of their Entry objects.
     blogs.delete()
 
-This cascade behavior is customizable via the
-:attr:`~django.db.models.ForeignKey.on_delete` argument to the
-:class:`~django.db.models.ForeignKey`.
+.. versionadded:: 1.3
+    This cascade behavior is customizable via the
+    :attr:`~django.db.models.ForeignKey.on_delete` argument to the
+    :class:`~django.db.models.ForeignKey`.
 
 The ``delete()`` method does a bulk delete and does not call any ``delete()``
 methods on your models. It does, however, emit the
