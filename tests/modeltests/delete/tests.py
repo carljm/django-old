@@ -1,53 +1,63 @@
 from django.db import models, IntegrityError
 from django.test import TestCase, skipUnlessDBFeature, skipIfDBFeature
 
-from modeltests.delete.models import (R, S, T, U, A, M, MR, MRNull,
+from modeltests.delete.models import (R, RChild, S, T, U, A, M, MR, MRNull,
     create_a, get_default_r, User, Avatar, HiddenUser, HiddenUserProfile)
 
 
 class OnDeleteTests(TestCase):
-    def test_basics(self):
-        DEFAULT = get_default_r()
+    def setUp(self):
+        self.DEFAULT = get_default_r()
 
+    def test_auto(self):
         a = create_a('auto')
         a.auto.delete()
         self.assertFalse(A.objects.filter(name='auto').exists())
 
+    def test_auto_nullable(self):
         a = create_a('auto_nullable')
         a.auto_nullable.delete()
         self.assertFalse(A.objects.filter(name='auto_nullable').exists())
 
+    def test_setvalue(self):
         a = create_a('setvalue')
         a.setvalue.delete()
         a = A.objects.get(pk=a.pk)
-        self.assertEqual(DEFAULT, a.setvalue)
+        self.assertEqual(self.DEFAULT, a.setvalue)
 
+    def test_setnull(self):
         a = create_a('setnull')
         a.setnull.delete()
         a = A.objects.get(pk=a.pk)
         self.assertEqual(None, a.setnull)
 
+    def test_setdefault(self):
         a = create_a('setdefault')
         a.setdefault.delete()
         a = A.objects.get(pk=a.pk)
-        self.assertEqual(DEFAULT, a.setdefault)
+        self.assertEqual(self.DEFAULT, a.setdefault)
 
+    def test_setdefault_none(self):
         a = create_a('setdefault_none')
         a.setdefault_none.delete()
         a = A.objects.get(pk=a.pk)
         self.assertEqual(None, a.setdefault_none)
 
+    def test_cascade(self):
         a = create_a('cascade')
         a.cascade.delete()
         self.assertFalse(A.objects.filter(name='cascade').exists())
 
+    def test_cascade_nullable(self):
         a = create_a('cascade_nullable')
         a.cascade_nullable.delete()
         self.assertFalse(A.objects.filter(name='cascade_nullable').exists())
 
+    def test_protect(self):
         a = create_a('protect')
         self.assertRaises(IntegrityError, a.protect.delete)
 
+    def test_do_nothing(self):
         # Testing DO_NOTHING is a bit harder: It would raise IntegrityError for a normal model,
         # so we connect to pre_delete and set the fk to a known value.
         replacement_r = R.objects.create()
@@ -61,15 +71,53 @@ class OnDeleteTests(TestCase):
         self.assertEqual(replacement_r, a.donothing)
         models.signals.pre_delete.disconnect(check_do_nothing)
 
+    def test_inheritance_cascade_up(self):
+        child = RChild.objects.create()
+        child.delete()
+        self.assertFalse(R.objects.filter(pk=child.pk).exists())
+
+    def test_inheritance_cascade_down(self):
+        child = RChild.objects.create()
+        parent = child.r_ptr
+        parent.delete()
+        self.assertFalse(RChild.objects.filter(pk=child.pk).exists())
+
+    def test_cascade_from_child(self):
+        a = create_a('child')
+        a.child.delete()
+        self.assertFalse(A.objects.filter(name='child').exists())
+        self.assertFalse(R.objects.filter(pk=a.child_id).exists())
+
+    def test_cascade_from_parent(self):
+        a = create_a('child')
+        R.objects.get(pk=a.child_id).delete()
+        self.assertFalse(A.objects.filter(name='child').exists())
+        self.assertFalse(RChild.objects.filter(pk=a.child_id).exists())
+
+    def test_setnull_from_child(self):
+        a = create_a('child_setnull')
+        a.child_setnull.delete()
+        self.assertFalse(R.objects.filter(pk=a.child_setnull_id).exists())
+
+        a = A.objects.get(pk=a.pk)
+        self.assertEqual(None, a.child_setnull)
+
+    def test_setnull_from_parent(self):
+        a = create_a('child_setnull')
+        R.objects.get(pk=a.child_setnull_id).delete()
+        self.assertFalse(RChild.objects.filter(pk=a.child_setnull_id).exists())
+
+        a = A.objects.get(pk=a.pk)
+        self.assertEqual(None, a.child_setnull)
+
+    def test_o2o_setnull(self):
         a = create_a('o2o_setnull')
         a.o2o_setnull.delete()
         a = A.objects.get(pk=a.pk)
         self.assertEqual(None, a.o2o_setnull)
 
-        A.objects.all().update(protect=None, donothing=None)
-        R.objects.all().delete()
-        self.assertFalse(A.objects.exists())
 
+class DeletionTests(TestCase):
     def test_m2m(self):
         m = M.objects.create()
         r = R.objects.create()

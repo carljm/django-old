@@ -7,16 +7,24 @@ class R(models.Model):
     def __str__(self):
         return "%s" % self.pk
 
+
 get_default_r = lambda: R.objects.get_or_create(is_default=True)[0]
+
 
 class S(models.Model):
     r = models.ForeignKey(R)
 
+
 class T(models.Model):
     s = models.ForeignKey(S)
 
+
 class U(models.Model):
     t = models.ForeignKey(T)
+
+
+class RChild(R):
+    pass
 
 
 class A(models.Model):
@@ -40,6 +48,9 @@ class A(models.Model):
     protect = models.ForeignKey(R, on_delete=models.PROTECT, null=True)
     donothing = models.ForeignKey(R, on_delete=models.DO_NOTHING, null=True,
         related_name='donothing_set')
+    child = models.ForeignKey(RChild, related_name="child")
+    child_setnull = models.ForeignKey(RChild, on_delete=models.SET_NULL, null=True,
+        related_name="child_setnull")
 
     # A OneToOneField is just a ForeignKey unique=True, so we don't duplicate
     # all the tests; just one smoke test to ensure on_delete works for it as
@@ -55,6 +66,8 @@ def create_a(name):
                  'donothing', 'o2o_setnull'):
         r = R.objects.create()
         setattr(a, name, r)
+    a.child = RChild.objects.create()
+    a.child_setnull = RChild.objects.create()
     a.save()
     return a
 
