@@ -15,13 +15,13 @@ from django.utils.encoding import smart_unicode
 from django.contrib.contenttypes.models import ContentType
 
 
-def CASCADE(collector, relation, sub_objs, using):
-    collector.collect(sub_objs, source=relation.model, nullable=True)
+# def CASCADE(collector, relation, sub_objs, using):
+#     collector.collect(sub_objs, source=relation.model, nullable=True)
 
 
-def SET_NULL(collector, relation, sub_objs, using):
-    collector.add_field_update(relation.rel.to._meta.get_field(relation.content_type_field_name), None, sub_objs)
-    collector.add_field_update(relation.rel.to._meta.get_field(relation.object_id_field_name), None, sub_objs)
+# def SET_NULL(collector, relation, sub_objs, using):
+#     collector.add_field_update(relation.rel.to._meta.get_field(relation.content_type_field_name), None, sub_objs)
+#     collector.add_field_update(relation.rel.to._meta.get_field(relation.object_id_field_name), None, sub_objs)
 
 
 class GenericForeignKey(object):
@@ -29,12 +29,14 @@ class GenericForeignKey(object):
     Provides a generic relation to any object through content-type/object-id
     fields.
     """
+    constraints_enforced = False
 
     def __init__(self, ct_field="content_type", fk_field="object_id",
-                 on_delete=CASCADE):
+                 on_delete=models.CASCADE):
         self.ct_field = ct_field
         self.fk_field = fk_field
         self.on_delete = on_delete
+        self.null = True
 
     def contribute_to_class(self, cls, name):
         self.name = name
@@ -129,18 +131,18 @@ class GenericRelation(RelatedField, Field):
 
 
     def _on_delete(self):
-        if self.gfk is not None:
-            return self.gfk.on_delete
+        if self.field is not None:
+            return self.field.on_delete
     on_delete = property(_on_delete)
 
-    def _gfk(self):
+    def _field(self):
         # Find related GenericForeignKey
         for field in self.rel.to._meta.virtual_fields:
             if (isinstance(field, GenericForeignKey) and
                 field.ct_field == self.content_type_field_name and
                 field.fk_field == self.object_id_field_name):
                 return field
-    gfk = property(_gfk)
+    field = property(_field)
 
     def bulk_related_objects(self, objs, using=DEFAULT_DB_ALIAS):
         """

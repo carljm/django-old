@@ -9,20 +9,18 @@ from django.utils.functional import wraps
 # TODO: validation for GenericRelation on_delete
 # TODO: tests for GenericRelation on_delete
 
-# field.rel.to: model currently being processed - relation.model
-# field.name: field name from FK side - relation.gfk.name
-# field.null: whether relation is nullable - relation.gfk.null
 # field.get_default(): default value for FK - defaults for relation.gfk.ct_field, fk_field
 # generic way to call collector.add_field_update - for both ct_field and fk_field
 
-def CASCADE(collector, field, sub_objs, using):
-    collector.collect(sub_objs, source=field.rel.to,
+def CASCADE(collector, source_model, field, sub_objs, using):
+    collector.collect(sub_objs, source=source_model,
                       source_attr=field.name, nullable=field.null)
-    if field.null and not connections[using].features.can_defer_constraint_checks:
+    if (field.null and field.constraints_enforced and not
+        connections[using].features.can_defer_constraint_checks):
         collector.add_field_update(field, None, sub_objs)
 
 
-def PROTECT(collector, field, sub_objs, using):
+def PROTECT(collector, source_model, field, sub_objs, using):
     raise IntegrityError("Cannot delete some instances of model '%s' because "
         "they are referenced through a protected foreign key: '%s.%s'" % (
             field.rel.to.__name__, sub_objs[0].__class__.__name__, field.name
@@ -30,7 +28,7 @@ def PROTECT(collector, field, sub_objs, using):
 
 
 def SET(value):
-    def set_on_delete(collector, field, sub_objs, using):
+    def set_on_delete(collector, source_model, field, sub_objs, using):
         if callable(value):
             val = value()
         else:
@@ -42,11 +40,11 @@ def SET(value):
 SET_NULL = SET(None)
 
 
-def SET_DEFAULT(collector, field, sub_objs, using):
+def SET_DEFAULT(collector, source_model, field, sub_objs, using):
     collector.add_field_update(field, field.get_default(), sub_objs)
 
 
-def DO_NOTHING(collector, field, sub_objs, using):
+def DO_NOTHING(collector, source_model, field, sub_objs, using):
     pass
 
 
@@ -157,14 +155,14 @@ class Collector(object):
                     sub_objs = self.related_objects(related, new_objs)
                     if not sub_objs:
                         continue
-                    field.rel.on_delete(self, field, sub_objs, self.using)
+                    field.rel.on_delete(self, field.rel.to, field, sub_objs, self.using)
 
             for m2m in model._meta.many_to_many:
                 # hook for m2mish things (GenericRelation) to
                 # provide custom on_delete behavior.
                 if m2m.on_delete:
                     sub_objs = m2m.bulk_related_objects(new_objs, self.using)
-                    m2m.on_delete(self, m2m, sub_objs, self.using)
+                    m2m.on_delete(self, m2m.model, m2m.field, sub_objs, self.using)
 
     def related_objects(self, related, objs):
         """

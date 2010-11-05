@@ -87,7 +87,7 @@ class Vote(models.Model):
     content_type = models.ForeignKey(ContentType, blank=True, null=True)
     object_id = models.PositiveIntegerField(blank=True, null=True)
 
-    content_object = generic.GenericForeignKey(on_delete=generic.SET_NULL)
+    content_object = generic.GenericForeignKey(on_delete=models.SET_NULL)
 
 class VotableItem(models.Model):
     votes = generic.GenericRelation(Vote)
