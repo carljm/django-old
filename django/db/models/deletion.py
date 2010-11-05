@@ -75,14 +75,20 @@ class Collector(object):
             return []
         new_objs = []
         model = objs[0].__class__
+
         instances = self.data.setdefault(model, [])
         for obj in objs:
             if obj not in instances:
+                if not model._meta.auto_created:
+                    signals.pre_delete.send(
+                        sender=model, instance=obj, using=self.using
+                        )
                 new_objs.append(obj)
         instances.extend(new_objs)
-        # Nullable relationships can be ignored -- they are nulled out before
-        # deleting, and therefore do not affect the order in which objects have
-        # to be deleted.
+
+        # Nullable relationships can be ignored for ordering dependency
+        # purposes -- they are nulled out before deleting, and therefore do not
+        # affect the order in which objects have to be deleted.
         if new_objs and source is not None and not nullable:
             self.dependencies.setdefault(source, set()).add(model)
         return new_objs
@@ -197,13 +203,6 @@ class Collector(object):
         # don't support transactions or cannot defer contraint checks until the
         # end of a transaction.
         self.sort()
-
-        # send pre_delete signals
-        for model, obj in self.instances_with_model():
-            if not model._meta.auto_created:
-                signals.pre_delete.send(
-                    sender=model, instance=obj, using=self.using
-                )
 
         # update fields
         for model, instances_for_fieldvalues in self.field_updates.iteritems():
