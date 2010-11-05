@@ -1263,9 +1263,10 @@ For example, to delete all the entries in a particular blog::
     # Delete all the entries belonging to this Blog.
     >>> Entry.objects.filter(blog=b).delete()
 
-By default, Django emulates the SQL constraint ``ON DELETE CASCADE`` -- in
-other words, any objects with foreign keys pointing at the objects to be
-deleted will be deleted along with them.  For example::
+By default, Django's :class:`~django.db.models.ForeignKey` emulates the SQL
+constraint ``ON DELETE CASCADE`` -- in other words, any objects with foreign
+keys pointing at the objects to be deleted will be deleted along with them.
+For example::
 
     blogs = Blog.objects.all()
     # This will delete all Blogs and all of their Entry objects.
