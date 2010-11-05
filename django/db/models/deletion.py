@@ -144,15 +144,17 @@ class Collector(object):
                         continue
                     field.rel.on_delete(self, field, sub_objs, self.using)
 
-            for field in model._meta.many_to_many:
-                if not field.rel.through:
-                    # m2m-ish but with no through table? GenericRelation
-                    for obj in new_objs:
-                        # FIXME GenericRelation should have on_delete
-                        self.collect(field.value_from_object(obj).all(),
-                                     source=model,
-                                     source_attr=field.rel.related_name,
-                                     nullable=True)
+            # TODO This entire block is only needed as a special case to
+            # support cascade-deletes for GenericRelation. It should be
+            # removed/fixed when the ORM gains a proper abstraction for virtual
+            # or composite fields, and GFKs are reworked to fit into that.
+            for relation in model._meta.many_to_many:
+                if not relation.rel.through:
+                    sub_objs = relation.bulk_related_objects(new_objs, self.using)
+                    self.collect(sub_objs,
+                                 source=model,
+                                 source_attr=relation.rel.related_name,
+                                 nullable=True)
 
     def related_objects(self, related, objs):
         """
