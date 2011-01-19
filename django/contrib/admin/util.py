@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, IntegrityError
 from django.db.models.sql.constants import LOOKUP_SEP
 from django.db.models.deletion import Collector
 from django.db.models.related import RelatedObject
@@ -76,6 +76,7 @@ def get_deleted_objects(objs, opts, user, admin_site, using):
     collector = NestedObjects(using=using)
     collector.collect(objs)
     perms_needed = set()
+    protected = set()
 
     def format_callback(obj):
         has_admin = obj.__class__ in admin_site._registry
@@ -104,13 +105,14 @@ def get_deleted_objects(objs, opts, user, admin_site, using):
 
     to_delete = collector.nested(format_callback)
 
-    return to_delete, perms_needed
+    return to_delete, perms_needed, collector.protected
 
 
 class NestedObjects(Collector):
     def __init__(self, *args, **kwargs):
         super(NestedObjects, self).__init__(*args, **kwargs)
         self.edges = {} # {from_instance: [to_instances]}
+        self.protected = set()
 
     def add_edge(self, source, target):
         self.edges.setdefault(source, []).append(target)
@@ -121,7 +123,10 @@ class NestedObjects(Collector):
                 self.add_edge(getattr(obj, source_attr), obj)
             else:
                 self.add_edge(None, obj)
-        return super(NestedObjects, self).collect(objs, source_attr=source_attr, **kwargs)
+        try:
+            return super(NestedObjects, self).collect(objs, source_attr=source_attr, **kwargs)
+        except IntegrityError, e:
+            self.protected.update(e.protected_objects)
 
     def related_objects(self, related, objs):
         qs = super(NestedObjects, self).related_objects(related, objs)

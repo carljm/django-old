@@ -14,10 +14,12 @@ def CASCADE(collector, field, sub_objs, using):
         collector.add_field_update(field, None, sub_objs)
 
 def PROTECT(collector, field, sub_objs, using):
-    raise IntegrityError("Cannot delete some instances of model '%s' because "
+    e = IntegrityError("Cannot delete some instances of model '%s' because "
         "they are referenced through a protected foreign key: '%s.%s'" % (
             field.rel.to.__name__, sub_objs[0].__class__.__name__, field.name
     ))
+    e.protected_objects = sub_objs
+    raise e
 
 def SET(value):
     if callable(value):
