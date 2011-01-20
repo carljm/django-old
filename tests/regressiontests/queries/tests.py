@@ -14,7 +14,7 @@ from django.utils.datastructures import SortedDict
 from models import (Annotation, Article, Author, Celebrity, Child, Cover, Detail,
     DumbCategory, ExtraInfo, Fan, Item, LeafA, LoopX, LoopZ, ManagedModel,
     Member, NamedCategory, Note, Number, Plaything, PointerA, Ranking, Related,
-    Report, ReservedName, Tag, TvChef, Valid, X)
+    Report, ReservedName, Tag, TvChef, Valid, X, Food, Eaten, Node)
 
 
 class BaseQuerysetTest(TestCase):
@@ -1514,6 +1514,46 @@ class EscapingTests(TestCase):
             ['<ReservedName: b>', '<ReservedName: a>']
         )
 
+
+class ToFieldTests(TestCase):
+    def test_in_query(self):
+        apple = Food.objects.create(name="apple")
+        pear = Food.objects.create(name="pear")
+        banana = Food.objects.create(name="banana")
+        breakfast = Eaten.objects.create(food=banana, meal="breakfast")
+        lunch = Eaten.objects.create(food=apple, meal="lunch")
+        dinner = Eaten.objects.create(food=pear, meal="dinner")
+
+        self.assertEqual(
+            set(Eaten.objects.filter(food__in=[apple, pear])),
+            set([lunch, dinner]),
+        )
+
+    def test_related_object_query(self):
+        apple = Food.objects.create(name="apple")
+        banana = Food.objects.create(name="banana")
+        breakfast = Eaten.objects.create(food=banana, meal="breakfast")
+        lunch = Eaten.objects.create(food=apple, meal="lunch")
+        dinner = Eaten.objects.create(food=apple, meal="dinner")
+
+        self.assertEqual(
+            set(Eaten.objects.filter(food=apple)),
+            set([lunch, dinner])
+        )
+
+    def test_recursive_fk(self):
+        node1 = Node.objects.create(num=42)
+ 	node2 = Node.objects.create(num=1, parent=node1)
+
+ 	self.assertEqual(
+            list(Node.objects.filter(node=node2)),
+            [node1]
+        )
+
+ 	self.assertEqual(
+            list(Node.objects.filter(parent=node1)),
+            [node2]
+        )
 
 class ConditionalTests(BaseQuerysetTest):
     """Tests whose execution depend on dfferent environment conditions like
