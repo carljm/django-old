@@ -104,7 +104,9 @@ def get_deleted_objects(objs, opts, user, admin_site, using):
 
     to_delete = collector.nested(format_callback)
 
-    return to_delete, perms_needed, collector.protected
+    protected = [format_callback(obj) for obj in collector.protected]
+
+    return to_delete, perms_needed, protected
 
 
 class NestedObjects(Collector):

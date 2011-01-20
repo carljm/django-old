@@ -892,8 +892,8 @@ class AdminViewDeletedObjectsTest(TestCase):
 
         response = self.client.get("/test_admin/admin/admin_views/question/%s/delete/" % quote(q.pk))
         self.assertContains(response, "would require deleting the following protected related objects")
-        self.assertContains(response, "<li>Because.</li>")
-        self.assertContains(response, "<li>Yes.</li>")
+        self.assertContains(response, '<li>Answer: <a href="/test_admin/admin/admin_views/answer/%s/">Because.</a></li>' % a1.pk)
+        self.assertContains(response, '<li>Answer: <a href="/test_admin/admin/admin_views/answer/%s/">Yes.</a></li>' % a2.pk)
 
     def test_not_registered(self):
         should_contain = """<li>Secret hideout: underground bunker"""
@@ -1656,8 +1656,8 @@ class AdminActionsTest(TestCase):
         response = self.client.post("/test_admin/admin/admin_views/question/", action_data)
 
         self.assertContains(response, "would require deleting the following protected related objects")
-        self.assertContains(response, "<li>Because.</li>")
-        self.assertContains(response, "<li>Yes.</li>")
+        self.assertContains(response, '<li>Answer: <a href="/test_admin/admin/admin_views/answer/%s/">Because.</a></li>' % a1.pk)
+        self.assertContains(response, '<li>Answer: <a href="/test_admin/admin/admin_views/answer/%s/">Yes.</a></li>' % a2.pk)
 
     def test_custom_function_mail_action(self):
         "Tests a custom action defined in a function"
