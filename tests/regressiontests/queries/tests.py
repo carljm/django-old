@@ -1541,6 +1541,19 @@ class ToFieldTests(TestCase):
             set([lunch, dinner])
         )
 
+    def test_related_object_reverse_in(self):
+        apple = Food.objects.create(name="apple")
+        pear = Food.objects.create(name="pear")
+        banana = Food.objects.create(name="banana")
+        breakfast = Eaten.objects.create(food=banana, meal="breakfast")
+        lunch_apple = Eaten.objects.create(food=apple, meal="lunch")
+        lunch_pear = Eaten.objects.create(food=pear, meal="dinner")
+
+        self.assertEqual(
+            set(Food.objects.filter(eaten__in=[lunch_apple, lunch_pear])),
+            set([apple, pear])
+        )
+
     def test_recursive_fk(self):
         node1 = Node.objects.create(num=42)
  	node2 = Node.objects.create(num=1, parent=node1)
