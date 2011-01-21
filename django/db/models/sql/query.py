@@ -1364,12 +1364,7 @@ class Query(object):
                         table = opts.db_table
                         from_col = local_field.column
                         to_col = field.column
-                        # In case of a recursive FK with to_field, use the
-                        # right target field
-                        if orig_field.model is local_field.model:
-                            target = opts.get_field(field.rel.field_name)
-                        else:
-                            target = opts.pk
+                        target = opts.pk
                         orig_opts._join_cache[name] = (table, from_col, to_col,
                                 opts, target)
 
