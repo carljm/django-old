@@ -1519,8 +1519,6 @@ class ToFieldTests(TestCase):
     def test_in_query(self):
         apple = Food.objects.create(name="apple")
         pear = Food.objects.create(name="pear")
-        banana = Food.objects.create(name="banana")
-        breakfast = Eaten.objects.create(food=banana, meal="breakfast")
         lunch = Eaten.objects.create(food=apple, meal="lunch")
         dinner = Eaten.objects.create(food=pear, meal="dinner")
 
@@ -1532,8 +1530,6 @@ class ToFieldTests(TestCase):
     def test_reverse_in(self):
         apple = Food.objects.create(name="apple")
         pear = Food.objects.create(name="pear")
-        banana = Food.objects.create(name="banana")
-        breakfast = Eaten.objects.create(food=banana, meal="breakfast")
         lunch_apple = Eaten.objects.create(food=apple, meal="lunch")
         lunch_pear = Eaten.objects.create(food=pear, meal="dinner")
 
@@ -1544,8 +1540,6 @@ class ToFieldTests(TestCase):
 
     def test_single_object(self):
         apple = Food.objects.create(name="apple")
-        banana = Food.objects.create(name="banana")
-        breakfast = Eaten.objects.create(food=banana, meal="breakfast")
         lunch = Eaten.objects.create(food=apple, meal="lunch")
         dinner = Eaten.objects.create(food=apple, meal="dinner")
 
@@ -1556,8 +1550,6 @@ class ToFieldTests(TestCase):
 
     def test_single_object_reverse(self):
         apple = Food.objects.create(name="apple")
-        banana = Food.objects.create(name="banana")
-        breakfast = Eaten.objects.create(food=banana, meal="breakfast")
         lunch = Eaten.objects.create(food=apple, meal="lunch")
 
         self.assertEqual(
