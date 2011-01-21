@@ -123,7 +123,10 @@ class RelatedField(object):
         if not cls._meta.abstract:
             self.contribute_to_related_class(other, self.related)
 
-    def get_prep_lookup(self, lookup_type, value):
+    def get_prep_lookup_reverse(self, lookup_type, value):
+        return self.get_prep_lookup(lookup_type, value, reverse_lookup=True)
+
+    def get_prep_lookup(self, lookup_type, value, reverse_lookup=False):
         if hasattr(value, 'prepare'):
             return value.prepare()
         if hasattr(value, '_prepare'):
@@ -133,9 +136,12 @@ class RelatedField(object):
         # gets messy pretty quick. This is a good candidate for some refactoring
         # in the future.
         if lookup_type in ['exact', 'gt', 'lt', 'gte', 'lte']:
-            return self._pk_trace(value, 'get_prep_lookup', lookup_type)
+            return self._pk_trace(value, 'get_prep_lookup', lookup_type,
+                                  reverse_lookup=reverse_lookup)
         if lookup_type in ('range', 'in'):
-            return [self._pk_trace(v, 'get_prep_lookup', lookup_type) for v in value]
+            return [self._pk_trace(v, 'get_prep_lookup', lookup_type,
+                                   reverse_lookup=reverse_lookup)
+                    for v in value]
         elif lookup_type == 'isnull':
             return []
         raise TypeError("Related Field has invalid lookup: %s" % lookup_type)
@@ -171,7 +177,8 @@ class RelatedField(object):
             return []
         raise TypeError("Related Field has invalid lookup: %s" % lookup_type)
 
-    def _pk_trace(self, value, prep_func, lookup_type, **kwargs):
+    def _pk_trace(self, value, prep_func, lookup_type,
+                  reverse_lookup=False, **kwargs):
         # Value may be a primary key, or an object held in a relation.
         # If it is an object, then we need to get the primary key value for
         # that object. In certain conditions (especially one-to-one relations),
@@ -179,10 +186,16 @@ class RelatedField(object):
         # down until we hit a value that can be used for a comparison.
         v = value
 
-        if isinstance(v, self.rel.to):
+        # RelatedFields may be asked to prep values for either forward or
+        # reverse lookups across the relationship. to_field only applies in the
+        # forwards direction. (The isinstance check would catch the reverse
+        # direction in most cases, but not in the case of recursive
+        # relationships.)
+        if not reverse_lookup and isinstance(v, self.rel.to):
             field_name = getattr(self.rel, "field_name", None)
         else:
             field_name = None
+
         try:
             while True:
                 if field_name is None:

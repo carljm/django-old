@@ -374,7 +374,7 @@ class SQLCompiler(object):
         pieces = name.split(LOOKUP_SEP)
         if not alias:
             alias = self.query.get_initial_alias()
-        field, target, opts, joins, last, extra = self.query.setup_joins(pieces,
+        field, target, direct, opts, joins, last, extra = self.query.setup_joins(pieces,
                 opts, alias, False)
         alias = joins[-1]
         col = target.column

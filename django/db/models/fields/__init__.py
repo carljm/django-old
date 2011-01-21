@@ -275,6 +275,11 @@ class Field(object):
         "Returns field's value prepared for saving into a database."
         return self.get_db_prep_value(value, connection=connection, prepared=False)
 
+    def get_prep_lookup_reverse(self, lookup_type, value):
+        # The reverse lookup distinction only matters for related fields, but
+        # all fields should support the method as an alias of get_prep_lookup.
+        return self.get_prep_lookup(lookup_type, value)
+
     def get_prep_lookup(self, lookup_type, value):
         "Perform preliminary non-db specific lookup checks and conversions"
         if hasattr(value, 'prepare'):

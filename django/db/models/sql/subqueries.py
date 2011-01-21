@@ -199,7 +199,7 @@ class DateQuery(Query):
         field = result[0]
         assert isinstance(field, DateField), "%r isn't a DateField." \
                 % field.name
-        alias = result[3][-1]
+        alias = result[4][-1]
         select = Date((alias, field.column), lookup_type)
         self.select = [select]
         self.select_fields = [None]

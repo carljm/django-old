@@ -284,8 +284,9 @@ class Constraint(object):
     An object that can be passed to WhereNode.add() and knows how to
     pre-process itself prior to including in the WhereNode.
     """
-    def __init__(self, alias, col, field):
+    def __init__(self, alias, col, field, reverse_lookup=False):
         self.alias, self.col, self.field = alias, col, field
+        self.reverse_lookup = reverse_lookup
 
     def __getstate__(self):
         """Save the state of the Constraint for pickling.
@@ -313,7 +314,10 @@ class Constraint(object):
 
     def prepare(self, lookup_type, value):
         if self.field:
-            return self.field.get_prep_lookup(lookup_type, value)
+            prep_func = "get_prep_lookup"
+            if self.reverse_lookup:
+                prep_func = "get_prep_lookup_reverse"
+            return getattr(self.field, prep_func)(lookup_type, value)
         return value
 
     def process(self, lookup_type, value, connection):

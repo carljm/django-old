@@ -961,7 +961,7 @@ class Query(object):
             #   - this is an annotation over a model field
             # then we need to explore the joins that are required.
 
-            field, source, opts, join_list, last, _ = self.setup_joins(
+            field, source, direct, opts, join_list, last, _ = self.setup_joins(
                 field_list, opts, self.get_initial_alias(), False)
 
             # Process the join chain to see if it can be trimmed
@@ -1053,7 +1053,7 @@ class Query(object):
         allow_many = trim or not negate
 
         try:
-            field, target, opts, join_list, last, extra_filters = self.setup_joins(
+            field, target, direct, opts, join_list, last, extra_filters = self.setup_joins(
                     parts, opts, alias, True, allow_many, can_reuse=can_reuse,
                     negate=negate, process_extras=process_extras)
         except MultiJoin, e:
@@ -1094,14 +1094,15 @@ class Query(object):
             self.promote_alias_chain(join_it, join_promote)
             self.promote_alias_chain(table_it, table_promote)
 
+        constraint = Constraint(alias, col, field, reverse_lookup=not direct)
 
         if having_clause or force_having:
             if (alias, col) not in self.group_by:
                 self.group_by.append((alias, col))
-            self.having.add((Constraint(alias, col, field), lookup_type, value),
+            self.having.add((constraint, lookup_type, value),
                 connector)
         else:
-            self.where.add((Constraint(alias, col, field), lookup_type, value),
+            self.where.add((constraint, lookup_type, value),
                 connector)
 
         if negate:
@@ -1204,8 +1205,10 @@ class Query(object):
         customised behaviour.
 
         Returns the final field involved in the join, the target database
-        column (used for any 'where' constraint), the final 'opts' value and the
-        list of tables joined.
+        column (used for any 'where' constraint), a boolean indicating whether
+        the final field is traversed in a forwards direction (from the model on
+        which it is defined), the final 'opts' value and the list of tables
+        joined.
         """
         joins = [alias]
         last = [0]
@@ -1386,7 +1389,7 @@ class Query(object):
             else:
                 raise FieldError("Join on field %r not permitted." % name)
 
-        return field, target, opts, joins, last, extra_filters
+        return field, target, direct, opts, joins, last, extra_filters
 
     def trim_joins(self, target, join_list, last, trim):
         """
@@ -1535,7 +1538,7 @@ class Query(object):
 
         try:
             for name in field_names:
-                field, target, u2, joins, u3, u4 = self.setup_joins(
+                field, target, direct, u2, joins, u3, u4 = self.setup_joins(
                         name.split(LOOKUP_SEP), opts, alias, False, allow_m2m,
                         True)
                 final_alias = joins[-1]
@@ -1812,7 +1815,7 @@ class Query(object):
         """
         opts = self.model._meta
         alias = self.get_initial_alias()
-        field, col, opts, joins, last, extra = self.setup_joins(
+        field, col, direct, opts, joins, last, extra = self.setup_joins(
                 start.split(LOOKUP_SEP), opts, alias, False)
         select_col = self.alias_map[joins[1]][LHS_JOIN_COL]
         select_alias = alias
