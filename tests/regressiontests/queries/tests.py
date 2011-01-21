@@ -1529,19 +1529,7 @@ class ToFieldTests(TestCase):
             set([lunch, dinner]),
         )
 
-    def test_related_object_query(self):
-        apple = Food.objects.create(name="apple")
-        banana = Food.objects.create(name="banana")
-        breakfast = Eaten.objects.create(food=banana, meal="breakfast")
-        lunch = Eaten.objects.create(food=apple, meal="lunch")
-        dinner = Eaten.objects.create(food=apple, meal="dinner")
-
-        self.assertEqual(
-            set(Eaten.objects.filter(food=apple)),
-            set([lunch, dinner])
-        )
-
-    def test_related_object_reverse_in(self):
+    def test_reverse_in(self):
         apple = Food.objects.create(name="apple")
         pear = Food.objects.create(name="pear")
         banana = Food.objects.create(name="banana")
@@ -1554,7 +1542,39 @@ class ToFieldTests(TestCase):
             set([apple, pear])
         )
 
+    def test_single_object(self):
+        apple = Food.objects.create(name="apple")
+        banana = Food.objects.create(name="banana")
+        breakfast = Eaten.objects.create(food=banana, meal="breakfast")
+        lunch = Eaten.objects.create(food=apple, meal="lunch")
+        dinner = Eaten.objects.create(food=apple, meal="dinner")
+
+        self.assertEqual(
+            set(Eaten.objects.filter(food=apple)),
+            set([lunch, dinner])
+        )
+
+    def test_single_object_reverse(self):
+        apple = Food.objects.create(name="apple")
+        banana = Food.objects.create(name="banana")
+        breakfast = Eaten.objects.create(food=banana, meal="breakfast")
+        lunch = Eaten.objects.create(food=apple, meal="lunch")
+
+        self.assertEqual(
+            set(Food.objects.filter(eaten=lunch)),
+            set([apple])
+        )
+
     def test_recursive_fk(self):
+        node1 = Node.objects.create(num=42)
+ 	node2 = Node.objects.create(num=1, parent=node1)
+
+ 	self.assertEqual(
+            list(Node.objects.filter(parent=node1)),
+            [node2]
+        )
+
+    def test_recursive_fk_reverse(self):
         node1 = Node.objects.create(num=42)
  	node2 = Node.objects.create(num=1, parent=node1)
 
@@ -1563,10 +1583,6 @@ class ToFieldTests(TestCase):
             [node1]
         )
 
- 	self.assertEqual(
-            list(Node.objects.filter(parent=node1)),
-            [node2]
-        )
 
 class ConditionalTests(BaseQuerysetTest):
     """Tests whose execution depend on dfferent environment conditions like
