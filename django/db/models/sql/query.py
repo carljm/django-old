@@ -1365,7 +1365,7 @@ class Query(object):
                         from_col = local_field.column
                         to_col = field.column
                         # In case of a recursive FK with to_field, use the
-                        # right target field
+                        # to_field for both forward and reverse lookups
                         if orig_field.model is local_field.model:
                             target = opts.get_field(field.rel.field_name)
                         else:

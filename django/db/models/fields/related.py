@@ -179,6 +179,9 @@ class RelatedField(object):
         # down until we hit a value that can be used for a comparison.
         v = value
 
+        # In the case of a recursive FK, this allows to_field to be used for
+        # both forwards and reverse lookups across the FK. (In most cases, it's
+        # only relevant for forward lookups).
         if isinstance(v, self.rel.to):
             field_name = getattr(self.rel, "field_name", None)
         else:
