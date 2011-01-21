@@ -1559,18 +1559,18 @@ class ToFieldTests(TestCase):
 
     def test_recursive_fk(self):
         node1 = Node.objects.create(num=42)
- 	node2 = Node.objects.create(num=1, parent=node1)
+        node2 = Node.objects.create(num=1, parent=node1)
 
- 	self.assertEqual(
+        self.assertEqual(
             list(Node.objects.filter(parent=node1)),
             [node2]
         )
 
     def test_recursive_fk_reverse(self):
         node1 = Node.objects.create(num=42)
- 	node2 = Node.objects.create(num=1, parent=node1)
+        node2 = Node.objects.create(num=1, parent=node1)
 
- 	self.assertEqual(
+        self.assertEqual(
             list(Node.objects.filter(node=node2)),
             [node1]
         )
