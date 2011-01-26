@@ -1131,6 +1131,9 @@ class ManyToManyField(RelatedField, Field):
         self.m2m_field_name = curry(self._get_m2m_attr, related, 'name')
         self.m2m_reverse_field_name = curry(self._get_m2m_reverse_attr, related, 'name')
 
+        self.m2m_field_rel = curry(self._get_m2m_attr, related, 'rel')
+        self.m2m_reverse_field_rel = curry(self._get_m2m_reverse_attr, related, 'rel')
+
     def set_attributes_from_rel(self):
         pass
 
