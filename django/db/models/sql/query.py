@@ -1282,16 +1282,14 @@ class Query(object):
                                 to_col2, opts, target) = cached_data
                     else:
                         table1 = field.m2m_db_table()
-                        rel1 = field.m2m_field_rel()
                         from_col1 = opts.get_field_by_name(
-                            rel1.field_name)[0].column
+                            field.m2m_target_field_name())[0].column
                         to_col1 = field.m2m_column_name()
                         opts = field.rel.to._meta
                         table2 = opts.db_table
-                        rel2 = field.m2m_reverse_field_rel()
                         from_col2 = field.m2m_reverse_name()
                         to_col2 = opts.get_field_by_name(
-                            rel2.field_name)[0].column
+                            field.m2m_reverse_target_field_name())[0].column
                         target = opts.pk
                         orig_opts._join_cache[name] = (table1, from_col1,
                                 to_col1, table2, from_col2, to_col2, opts,
@@ -1339,16 +1337,14 @@ class Query(object):
                                 to_col2, opts, target) = cached_data
                     else:
                         table1 = field.m2m_db_table()
-                        rel1 = field.m2m_reverse_field_rel()
                         from_col1 = opts.get_field_by_name(
-                            rel1.field_name)[0].column
+                            field.m2m_reverse_target_field_name())[0].column
                         to_col1 = field.m2m_reverse_name()
                         opts = orig_field.opts
                         table2 = opts.db_table
-                        rel2 = field.m2m_field_rel()
                         from_col2 = field.m2m_column_name()
                         to_col2 = opts.get_field_by_name(
-                            rel2.field_name)[0].column
+                            field.m2m_target_field_name())[0].column
                         target = opts.pk
                         orig_opts._join_cache[name] = (table1, from_col1,
                                 to_col1, table2, from_col2, to_col2, opts,
