@@ -341,9 +341,8 @@ by appending something like this to your URLconf::
 
    if settings.DEBUG:
        urlpatterns += patterns('django.contrib.staticfiles.views',
-           url(r'^media/(?P<path>.*)$',
-               {'document_root': settings.MEDIA_ROOT},
-               'serve'),
+           url(r'^media/(?P<path>.*)$', 'serve',
+               {'document_root': settings.MEDIA_ROOT}),
        )
 
 This snippet assumes you've also set your :setting:`MEDIA_URL` (in development)
