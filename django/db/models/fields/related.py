@@ -388,7 +388,7 @@ class ForeignRelatedObjectsDescriptor(object):
             return self
 
         return self.create_manager(instance,
-                self.related.model._default_manager.__class__)
+                self.related.model._base_manager.__class__)
 
     def __set__(self, instance, value):
         if instance is None:
@@ -567,7 +567,7 @@ def create_many_related_manager(superclass, rel=False):
                     else:
                         new_ids.add(obj)
                 db = router.db_for_write(self.through, instance=self.instance)
-                vals = self.through._default_manager.using(db).values_list(target_field_name, flat=True)
+                vals = self.through._base_manager.using(db).values_list(target_field_name, flat=True)
                 vals = vals.filter(**{
                     source_field_name: self._pk_val,
                     '%s__in' % target_field_name: new_ids,
@@ -582,7 +582,7 @@ def create_many_related_manager(superclass, rel=False):
                         model=self.model, pk_set=new_ids, using=db)
                 # Add the ones that aren't there already
                 for obj_id in new_ids:
-                    self.through._default_manager.using(db).create(**{
+                    self.through._base_manager.using(db).create(**{
                         '%s_id' % source_field_name: self._pk_val,
                         '%s_id' % target_field_name: obj_id,
                     })
@@ -617,7 +617,7 @@ def create_many_related_manager(superclass, rel=False):
                         instance=self.instance, reverse=self.reverse,
                         model=self.model, pk_set=old_ids, using=db)
                 # Remove the specified objects from the join table
-                self.through._default_manager.using(db).filter(**{
+                self.through._base_manager.using(db).filter(**{
                     source_field_name: self._pk_val,
                     '%s__in' % target_field_name: old_ids
                 }).delete()
@@ -637,7 +637,7 @@ def create_many_related_manager(superclass, rel=False):
                 signals.m2m_changed.send(sender=rel.through, action="pre_clear",
                     instance=self.instance, reverse=self.reverse,
                     model=self.model, pk_set=None, using=db)
-            self.through._default_manager.using(db).filter(**{
+            self.through._base_manager.using(db).filter(**{
                 source_field_name: self._pk_val
             }).delete()
             if self.reverse or source_field_name == self.source_field_name:
@@ -666,7 +666,7 @@ class ManyRelatedObjectsDescriptor(object):
         # Dynamically create a class that subclasses the related
         # model's default manager.
         rel_model = self.related.model
-        superclass = rel_model._default_manager.__class__
+        superclass = rel_model._base_manager.__class__
         RelatedManager = create_many_related_manager(superclass, self.related.field.rel)
 
         manager = RelatedManager(
@@ -718,7 +718,7 @@ class ReverseManyRelatedObjectsDescriptor(object):
         # Dynamically create a class that subclasses the related
         # model's default manager.
         rel_model=self.field.rel.to
-        superclass = rel_model._default_manager.__class__
+        superclass = rel_model._base_manager.__class__
         RelatedManager = create_many_related_manager(superclass, self.field.rel)
 
         manager = RelatedManager(
@@ -847,7 +847,7 @@ class ForeignKey(RelatedField, Field):
             return
 
         using = router.db_for_read(model_instance.__class__, instance=model_instance)
-        qs = self.rel.to._default_manager.using(using).filter(
+        qs = self.rel.to._base_manager.using(using).filter(
                 **{self.rel.field_name: value}
              )
         qs = qs.complex_filter(self.rel.limit_choices_to)
@@ -910,7 +910,7 @@ class ForeignKey(RelatedField, Field):
         db = kwargs.pop('using', None)
         defaults = {
             'form_class': forms.ModelChoiceField,
-            'queryset': self.rel.to._default_manager.using(db).complex_filter(self.rel.limit_choices_to),
+            'queryset': self.rel.to._base_manager.using(db).complex_filter(self.rel.limit_choices_to),
             'to_field_name': self.rel.field_name,
         }
         defaults.update(kwargs)
@@ -1152,7 +1152,7 @@ class ManyToManyField(RelatedField, Field):
         db = kwargs.pop('using', None)
         defaults = {
             'form_class': forms.ModelMultipleChoiceField,
-            'queryset': self.rel.to._default_manager.using(db).complex_filter(self.rel.limit_choices_to)
+            'queryset': self.rel.to._base_manager.using(db).complex_filter(self.rel.limit_choices_to)
         }
         defaults.update(kwargs)
         # If initial is passed in, it's a list of related objects, but the
