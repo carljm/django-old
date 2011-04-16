@@ -1,6 +1,8 @@
 from django.test import TestCase
 
-from models import RelatedModel, RestrictedModel, OneToOneRestrictedModel
+from models import (
+    RelatedModel, RestrictedModel, OneToOneRestrictedModel,
+    ManyToManyRestrictedModel)
 
 class CustomManagersRegressTestCase(TestCase):
     def test_filtered_default_manager(self):
@@ -45,3 +47,41 @@ class CustomManagersRegressTestCase(TestCase):
         obj.delete()
         self.assertEqual(len(OneToOneRestrictedModel.plain_manager.all()), 0)
 
+
+class UseForRelatedFieldsFKTest(TestCase):
+    restricted_model = RestrictedModel
+    accessor_name = "restrictedmodel_set"
+
+    def create_restricted_instance(self, **kwargs):
+        return self.restricted_model.objects.create(**kwargs)
+
+    def test_use_for_related_false(self):
+        """
+        Test that when a custom Manager without ``use_for_related_fields =
+        True`` is the default manager, it is not used for related object
+        queries.
+
+        """
+        related = RelatedModel.objects.create(name="Related")
+        # create two public instances and one private
+        self.create_restricted_instance(
+            name="Public One", is_public=True, related=related)
+        self.create_restricted_instance(
+            name="Public Two", is_public=True, related=related)
+        self.create_restricted_instance(
+            name="Private", is_public=False, related=related)
+
+        # all three restricted-model instances should show up
+        self.assertEqual(getattr(related, self.accessor_name).count(), 3)
+
+
+class UseForRelatedFieldsM2MTest(UseForRelatedFieldsFKTest):
+    restricted_model = ManyToManyRestrictedModel
+    accessor_name = "manytomanyrestrictedmodel_set"
+
+    def create_restricted_instance(self, **kwargs):
+        related = kwargs.pop("related")
+        obj = UseForRelatedFieldsFKTest.create_restricted_instance(
+            self, **kwargs)
+        obj.related.add(related)
+        return obj
