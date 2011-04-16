@@ -35,6 +35,8 @@ class Person(models.Model):
 # calls. This argument is used to establish that the BookManager
 # is actually getting used when it should be.
 class BookManager(models.Manager):
+    use_for_related_fields = True
+
     def create(self, *args, **kwargs):
         kwargs.pop('extra_arg', None)
         return super(BookManager, self).create(*args, **kwargs)

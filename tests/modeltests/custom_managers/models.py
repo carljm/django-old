@@ -14,6 +14,8 @@ from django.db import models
 # An example of a custom manager called "objects".
 
 class PersonManager(models.Manager):
+    use_for_related_fields = True
+
     def get_fun_people(self):
         return self.filter(fun=True)
 
@@ -29,6 +31,8 @@ class Person(models.Model):
 # An example of a custom manager that sets get_query_set().
 
 class PublishedBookManager(models.Manager):
+    use_for_related_fields = True
+
     def get_query_set(self):
         return super(PublishedBookManager, self).get_query_set().filter(is_published=True)
 
