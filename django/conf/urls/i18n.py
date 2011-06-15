@@ -4,8 +4,10 @@ from django.core.urlresolvers import LocaleRegexURLResolver
 
 def i18n_patterns(prefix, *args):
     """
-    This will add the language code prefix to every URLPattern within this
-    function. It is only allowed to use this at rootlevel of your URLConf.
+    Adds the language code prefix to every URL pattern within this
+    function. This may only be used in the root URLconf, not in an included
+    URLconf.
+
     """
     pattern_list = patterns(prefix, *args)
     if not settings.USE_I18N:

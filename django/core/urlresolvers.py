@@ -11,7 +11,6 @@ import re
 from threading import local
 
 from django.http import Http404
-from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured, ViewDoesNotExist
 from django.utils.datastructures import MultiValueDict
 from django.utils.encoding import iri_to_uri, force_unicode, smart_str
@@ -376,9 +375,10 @@ class RegexURLResolver(RegexProvider):
 
 class LocaleRegexURLResolver(RegexURLResolver):
     """
-    The ``__init__`` function does not take an regex argument. Instead, we are
-    overriding the ``regex`` function to always return the active language-code
-    as regex.
+    A URL resolver that always matches the active language code as URL prefix.
+
+    Rather than taking a regex argument, we just override the ``regex``
+    function to always return the active language-code as regex.
     """
     def __init__(self, urlconf_name, default_kwargs=None, app_name=None, namespace=None):
         super(LocaleRegexURLResolver, self).__init__(

@@ -19,19 +19,19 @@ def include(arg, namespace=None, app_name=None):
         # No namespace hint - use manually provided namespace
         urlconf_module = arg
 
-    # Test if the LocaleRegexURLResolver is used within the include,
-    # this should throw an error since this is not allowed!
     if isinstance(urlconf_module, basestring):
         urlconf_module = import_module(urlconf_module)
     patterns = getattr(urlconf_module, 'urlpatterns', urlconf_module)
 
-    # Make sure we can iterate through the patterns (without this, some testcases
-    # will break).
+    # Make sure we can iterate through the patterns (without this, some
+    # testcases will break).
     if isinstance(patterns, (list, tuple)):
         for url_pattern in patterns:
+            # Test if the LocaleRegexURLResolver is used within the include;
+            # this should throw an error since this is not allowed!
             if isinstance(url_pattern, LocaleRegexURLResolver):
                 raise ImproperlyConfigured(
-                    'Using i18n_patterns inside an include is not allowed')
+                    'Using i18n_patterns in an included URLconf is not allowed.')
 
     return (urlconf_module, app_name, namespace)
 

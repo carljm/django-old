@@ -59,8 +59,8 @@ matters, you should follow these guidelines:
 
     * Make sure it's one of the first middlewares installed.
     * It should come after ``SessionMiddleware``, because ``LocaleMiddleware``
-      makes use of session data. As well it should come before ``CommonMiddleware``
-      because ``CommonMiddleware`` depends on a activated language when it needs
+      makes use of session data. And it should come before ``CommonMiddleware``
+      because ``CommonMiddleware`` needs an activated language in order
       to resolve the requested URL.
     * If you use ``CacheMiddleware``, put ``LocaleMiddleware`` after it.
 
@@ -80,9 +80,9 @@ following this algorithm:
 
 .. versionchanged:: 1.4
 
-    * First, it looks for the language prefix in the requested URL.
-      This is only performed when you are using the ``i18n_patterns``
-      function. See :ref:`url-internationalization` for more information
+    * First, it looks for the language prefix in the requested URL.  This is
+      only performed when you are using the ``i18n_patterns`` function in your
+      root URLconf. See :ref:`url-internationalization` for more information
       about the language prefix and how to internationalize URL patterns.
 
     * Failing that, it looks for a ``django_language`` key in the current
