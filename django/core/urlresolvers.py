@@ -116,10 +116,20 @@ def get_mod_func(callback):
         return callback, ''
     return callback[:dot], callback[dot+1:]
 
-class RegexProvider(object):
+class LocalizedRegexProvider(object):
     """
-    A mixin to provide a default regex property.
+    A mixin to provide a default regex property which can vary by active
+    language.
+
     """
+    def __init__(self, regex):
+        # regex is either a string representing a regular expression, or a
+        # translatable string (using ugettext_lazy) representing a regular
+        # expression.
+        self._regex = regex
+        self._regex_dict = {}
+
+
     @property
     def regex(self):
         """
@@ -137,16 +147,12 @@ class RegexProvider(object):
         return self._regex_dict[language_code]
 
 
-class RegexURLPattern(RegexProvider):
+class RegexURLPattern(LocalizedRegexProvider):
     def __init__(self, regex, callback, default_args=None, name=None):
-        # regex is either a string representing a regular expression, or a
-        # translatable string (using ugettext_lazy) representing a regular
-        # expression.
+        LocalizedRegexProvider.__init__(self, regex)
         # callback is either a string like 'foo.views.news.stories.story_detail'
         # which represents the path to a module and a view function name, or a
         # callable object (view).
-        self._regex = regex
-        self._regex_dict = {}
         if callable(callback):
             self._callback = callback
         else:
@@ -196,12 +202,10 @@ class RegexURLPattern(RegexProvider):
             raise ViewDoesNotExist("Tried %s in module %s. Error was: %s" % (func_name, mod_name, str(e)))
         return self._callback
 
-class RegexURLResolver(RegexProvider):
+class RegexURLResolver(LocalizedRegexProvider):
     def __init__(self, regex, urlconf_name, default_kwargs=None, app_name=None, namespace=None):
-        # regex is a string representing a regular expression.
+        LocalizedRegexProvider.__init__(self, regex)
         # urlconf_name is a string representing the module containing URLconfs.
-        self._regex = regex
-        self._regex_dict = {}
         self.urlconf_name = urlconf_name
         if not isinstance(urlconf_name, basestring):
             self._urlconf_module = self.urlconf_name
