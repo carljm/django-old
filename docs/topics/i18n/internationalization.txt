@@ -755,8 +755,8 @@ to produce proper pluralizations).
 
 .. _url-internationalization:
 
-Internationalizing URLs
-=======================
+Specifying translation strings: In URL patterns
+===============================================
 
 ..  versionadded:: 1.4
 
