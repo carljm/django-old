@@ -771,6 +771,13 @@ Django provides two mechanisms to internationalize URL patterns:
 * Making URL patterns themselves translatable via the
   :func:`django.utils.translation.ugettext_lazy()` function.
 
+.. warning::
+
+    Using either one of these features requires that an active language be set
+    for each request; in other words, you need to have
+    :class:`django.middleware.locale.LocaleMiddleware` in your
+    :setting:`MIDDLEWARE_CLASSES` setting.
+
 Language prefix in URL patterns
 -------------------------------
 
@@ -819,12 +826,15 @@ function. Example::
 
 .. warning::
 
-    * :func:`~django.conf.urls.i18n.i18n_patterns` is only allowed at root
-      level of the URL patterns. Using it within an included URLconf will throw
-      an ``ImproperlyConfigured`` exception.
+    :func:`~django.conf.urls.i18n.i18n_patterns` is only allowed in your root
+    URLconf. Using it within an included URLconf will throw an
+    :exc:`ImproperlyConfigured` exception.
 
-    * Make sure the automatically added language prefix does not cause
-      collision with other non-prefixed URL patterns.
+.. warning::
+
+    Ensure that you don't have non-prefixed URL patterns that might collide
+    with an automatically-added language prefix.
+
 
 Translating URL patterns
 ------------------------
@@ -869,10 +879,11 @@ return the URL in the active language. Example::
 
 .. warning::
 
-    Unless you are using your own middleware to detect the language to activate
-    from the requested URL, always use translatable URL patterns within
-    :func:`~django.conf.urls.defaults.i18n.i18n_patterns()`. Django is not able
-    to resolve a URL when the correct language is not activated.
+    In most cases, it's best to use translated URLs only within a
+    language-code-prefixed block of patterns (using
+    :func:`~django.conf.urls.i18n.i18n_patterns`), to avoid the possibility
+    that a carelessly translated URL causes a collision with a non-translated
+    URL pattern.
 
 .. _set_language-redirect-view:
 
