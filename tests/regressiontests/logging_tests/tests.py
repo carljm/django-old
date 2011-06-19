@@ -4,6 +4,7 @@ import copy
 
 from django.conf import compat_patch_logging_config
 from django.test import TestCase
+from django.utils.log import CallbackFilter
 
 
 # logging config prior to using filter with mail_admins
@@ -89,3 +90,23 @@ class PatchLoggingConfigTest(TestCase):
         compat_patch_logging_config(new_config)
 
         self.assertEqual(config, new_config)
+
+
+class CallbackFilterTest(TestCase):
+    def test_sense(self):
+        f_false = CallbackFilter(lambda r: False)
+        f_true = CallbackFilter(lambda r: True)
+
+        self.assertEqual(f_false.filter("record"), False)
+        self.assertEqual(f_true.filter("record"), True)
+
+    def test_passes_on_record(self):
+        collector = []
+        def _callback(record):
+            collector.append(record)
+            return True
+        f = CallbackFilter(_callback)
+
+        f.filter("a record")
+
+        self.assertEqual(collector, ["a record"])
