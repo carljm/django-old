@@ -185,15 +185,9 @@ def compat_patch_logging_config(logging_config):
 
         warnings.warn(
             "You have no filters defined on the 'mail_admins' logging "
-            "handler. Since uncaught request exceptions are now logged "
-            "in DEBUG mode as well as in production "
-            "(see https://code.djangoproject.com/ticket/16288), "
-            "to maintain backward-compatibility Django is adding a "
-            "filter for you to prevent emailing admins in DEBUG mode. "
-            "To get rid of this warning, add the filter explicitly "
-            "in your LOGGING config "
-            "(see http://docs.djangoproject.com/en/dev/releases/1.4/"
-            "#request-exceptions-are-now-always-logged).",
+            "handler: adding implicit debug-false-only filter. "
+            "See http://docs.djangoproject.com/en/dev/releases/1.4/"
+            "#request-exceptions-are-now-always-logged",
             PendingDeprecationWarning)
 
         filter_name = "require_debug_false"
