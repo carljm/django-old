@@ -29,6 +29,11 @@ OLD_LOGGING = {
 
 
 class PatchLoggingConfigTest(TestCase):
+    """
+    Tests for backward-compat shim for #16288. These tests should be removed in
+    Django 1.6 when that shim and DeprecationWarning are removed.
+
+    """
     def test_filter_added(self):
         """
         Test that debug-false filter is added to mail_admins handler if it has
