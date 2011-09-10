@@ -37,9 +37,6 @@ class ErrorIndexTest(TestCase):
     """
     @override_settings(DEBUG=True, TEMPLATE_DEBUG = True)
     def test_correct_exception_index(self):
-        '''
-        Looks at an exception page and confirms that the information about the source of an error that occurs during template rendering appears in the appropriate location.
-        '''
         tests = [
             ('{% load bad_tag %}{% for i in range %}{% badsimpletag %}{% endfor %}', (38, 56)),
             ('{% load bad_tag %}{% for i in range %}{% for j in range %}{% badsimpletag %}{% endfor %}{% endfor %}', (58, 76)),
