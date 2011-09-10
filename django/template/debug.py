@@ -45,7 +45,7 @@ class DebugParser(Parser):
 
     def source_error(self, source, msg):
         e = TemplateSyntaxError(msg)
-        e.source_template_node = source #Identify the template node that was being rendered when the error occurred.
+        e.django_template_source = source
         return e
 
     def create_nodelist(self):
@@ -68,17 +68,14 @@ class DebugParser(Parser):
             e.source = token.source
 
 class DebugNodeList(NodeList):
-    '''
-    A list of nodes that is instantiated when debug is True - this is the nerve center of exceptions that occur during template rendering. 
-    '''
     def render_node(self, node, context):
-        try:           
-            return node.render(context) 
+        try:
+            return node.render(context)
         except Exception, e:
-            if not hasattr(e, 'source_template_node'): #Have we already identified the node where the problem occured?
-                e.django_template_source = node.source #...if not, let's annotate the exception with that - the template will use this to show information about the template just before the traceback on the exception page.
+            if not hasattr(e, 'django_template_source'):
+                e.django_template_source = node.source
             raise e
-        
+
 
 class DebugVariableNode(VariableNode):
     def render(self, context):

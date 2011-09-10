@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
+from __future__ import with_statement
+
 from django.conf import settings
-from django.core.urlresolvers import NoReverseMatch
 
 if __name__ == '__main__':
     # When running this file in isolation, we need to set up the configuration
@@ -359,38 +360,31 @@ class Templates(unittest.TestCase):
         split = token.split_contents()
         self.assertEqual(split, ["sometag", '_("Page not found")', 'value|yesno:_("yes,no")'])
 
+    @override_settings(SETTINGS_MODULE=None, TEMPLATE_DEBUG=True)
     def test_url_reverse_no_settings_module(self):
         # Regression test for #9005
-        from django.template import Template, Context, TemplateSyntaxError
-
-        old_settings_module = settings.SETTINGS_MODULE
-        old_template_debug = settings.TEMPLATE_DEBUG
-
-        settings.SETTINGS_MODULE = None
-        settings.TEMPLATE_DEBUG = True
+        from django.template import Template, Context
 
         t = Template('{% url will_not_match %}')
         c = Context()
-        self.assertRaises(NoReverseMatch, t.render, c)
+        with self.assertRaises(urlresolvers.NoReverseMatch):
+            t.render(c)
 
-        settings.SETTINGS_MODULE = old_settings_module
-        settings.TEMPLATE_DEBUG = old_template_debug
-        
+
     @override_settings(DEBUG=True, TEMPLATE_DEBUG = True)
     def test_no_wrapped_exception(self):
         """
-        Previously exceptions were wrapped by TemplateSyntaxError.  See #16770
+        The template system doesn't wrap exceptions, but annotates them.
+        Refs #16770
+
         """
-        from django.template import Template, TemplateSyntaxError
-        c = Context({'coconuts': lambda: 42 / 0})
-        t = Template("{{coconuts}}")        
-        self.assertRaises(ZeroDivisionError, t.render, c) #Dividing by zero ought to cause ZeroDivisionError; we'll instead get TemplateSyntaxError here iff it's been wrapped.
-        
-        #Let's also confirm that the exception has the attribute we need to show the template information on the exception page.
-        try:
+        c = Context({"coconuts": lambda: 42 / 0})
+        t = Template("{{ coconuts }}")
+        with self.assertRaises(ZeroDivisionError) as cm:
             t.render(c)
-        except ZeroDivisionError, e:
-            self.assertTrue(hasattr(e, 'django_template_source'))
+
+        self.assertEqual(cm.exception.django_template_source[1], (0, 14))
+
 
     def test_invalid_block_suggestion(self):
         # See #7876
