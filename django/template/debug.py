@@ -4,6 +4,7 @@ from django.utils.html import escape
 from django.utils.safestring import SafeData, EscapeData
 from django.utils.formats import localize
 
+
 class DebugLexer(Lexer):
     def __init__(self, template_string, origin):
         super(DebugLexer, self).__init__(template_string, origin)
@@ -42,9 +43,9 @@ class DebugParser(Parser):
     def error(self, token, msg):
         return self.source_error(token.source, msg)
 
-    def source_error(self, source,msg):
+    def source_error(self, source, msg):
         e = TemplateSyntaxError(msg)
-        e.source = source
+        e.source_template_node = source #Identify the template node that was being rendered when the error occurred.
         return e
 
     def create_nodelist(self):
@@ -67,21 +68,17 @@ class DebugParser(Parser):
             e.source = token.source
 
 class DebugNodeList(NodeList):
+    '''
+    A list of nodes that is instantiated when debug is True - this is the nerve center of exceptions that occur during template rendering. 
+    '''
     def render_node(self, node, context):
-        try:
-            result = node.render(context)
-        except TemplateSyntaxError, e:
-            if not hasattr(e, 'source'):
-                e.source = node.source
-            raise
+        try:           
+            return node.render(context) 
         except Exception, e:
-            from sys import exc_info
-            wrapped = TemplateSyntaxError(u'Caught %s while rendering: %s' %
-                (e.__class__.__name__, force_unicode(e, errors='replace')))
-            wrapped.source = getattr(e, 'template_node_source', node.source)
-            wrapped.exc_info = exc_info()
-            raise wrapped, None, wrapped.exc_info[2]
-        return result
+            if not hasattr(e, 'source_template_node'): #Have we already identified the node where the problem occured?
+                e.django_template_source = node.source #...if not, let's annotate the exception with that - the template will use this to show information about the template just before the traceback on the exception page.
+            raise e
+        
 
 class DebugVariableNode(VariableNode):
     def render(self, context):
