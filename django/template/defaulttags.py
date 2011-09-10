@@ -228,7 +228,7 @@ class ForNode(Node):
             else:
                 context[self.loopvars[0]] = item
             # In TEMPLATE_DEBUG mode provide source of the node which
-            # actually raised an exception to DefaultNodeList.render_node
+            # actually raised the exception
             if settings.TEMPLATE_DEBUG:
                 for node in self.nodelist_loop:
                     try:
