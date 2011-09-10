@@ -64,8 +64,8 @@ class DebugParser(Parser):
         raise self.source_error(source, msg)
 
     def compile_function_error(self, token, e):
-        if not hasattr(e, 'source'):
-            e.source = token.source
+        if not hasattr(e, 'django_template_source'):
+            e.django_template_source = token.source
 
 class DebugNodeList(NodeList):
     def render_node(self, node, context):
@@ -74,7 +74,7 @@ class DebugNodeList(NodeList):
         except Exception, e:
             if not hasattr(e, 'django_template_source'):
                 e.django_template_source = node.source
-            raise e
+            raise
 
 
 class DebugVariableNode(VariableNode):
@@ -83,12 +83,12 @@ class DebugVariableNode(VariableNode):
             output = self.filter_expression.resolve(context)
             output = localize(output, use_l10n=context.use_l10n)
             output = force_unicode(output)
-        except TemplateSyntaxError, e:
-            if not hasattr(e, 'source'):
-                e.source = self.source
-            raise
         except UnicodeDecodeError:
             return ''
+        except Exception, e:
+            if not hasattr(e, 'django_template_source'):
+                e.django_template_source = self.source
+            raise
         if (context.autoescape and not isinstance(output, SafeData)) or isinstance(output, EscapeData):
             return escape(output)
         else:
