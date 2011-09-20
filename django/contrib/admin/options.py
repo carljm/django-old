@@ -307,10 +307,6 @@ class ModelAdmin(BaseModelAdmin):
         self.model = model
         self.opts = model._meta
         self.admin_site = admin_site
-        self.inline_instances = []
-        for inline_class in self.inlines:
-            inline_instance = inline_class(self.model, self.admin_site)
-            self.inline_instances.append(inline_instance)
         if 'action_checkbox' not in self.list_display and self.actions is not None:
             self.list_display = ['action_checkbox'] +  list(self.list_display)
         if not self.list_display_links:
@@ -319,6 +315,39 @@ class ModelAdmin(BaseModelAdmin):
                     self.list_display_links = [name]
                     break
         super(ModelAdmin, self).__init__()
+
+    def get_inline_instances(self, user=None, action=None):
+        inline_instances = []
+        for inline_class in self.inlines:
+            inline = inline_class(self.model, self.admin_site)
+            if user:
+                if inline.opts.auto_created:
+                    # The model was auto-created as intermediary for a
+                    # ManyToMany-relationship, find out the destination model
+                    for field in inline.opts.fields:
+                        if isinstance(field, models.ForeignKey) and field.rel.to != inline.opts.auto_created:
+                            perm_opts = field.rel.to._meta
+                else:
+                    perm_opts = inline.opts
+                perm_string = perm_opts.app_label + '.'
+                if action == 'change':
+                    # Currently, we can't make sure the user can only edit
+                    # existing inlines or only add new ones but not edit
+                    # existing ones. So we only allow editing if the user
+                    # has both permissions.
+                    if not user.has_perm(perm_string + perm_opts.get_change_permission()):
+                        continue
+                if not user.has_perm(perm_string + perm_opts.get_add_permission()):
+                    continue
+                if not user.has_perm(perm_string + perm_opts.get_delete_permission()):
+                    inline.can_delete = False
+            inline_instances.append(inline)
+
+        return inline_instances
+
+    @property
+    def inline_instances(self):
+        return self.get_inline_instances()
 
     def get_urls(self):
         from django.conf.urls import patterns, url
@@ -500,7 +529,8 @@ class ModelAdmin(BaseModelAdmin):
             fields=self.list_editable, **defaults)
 
     def get_formsets(self, request, obj=None):
-        for inline in self.inline_instances:
+        action = ('change' if obj else 'add')
+        for inline in self.get_inline_instances(request.user, action):
             yield inline.get_formset(request, obj)
 
     def get_paginator(self, request, queryset, per_page, orphans=0, allow_empty_first_page=True):
@@ -914,6 +944,7 @@ class ModelAdmin(BaseModelAdmin):
 
         ModelForm = self.get_form(request)
         formsets = []
+        inline_instances = self.get_inline_instances(request.user, 'add')
         if request.method == 'POST':
             form = ModelForm(request.POST, request.FILES)
             if form.is_valid():
@@ -923,7 +954,7 @@ class ModelAdmin(BaseModelAdmin):
                 form_validated = False
                 new_object = self.model()
             prefixes = {}
-            for FormSet, inline in zip(self.get_formsets(request), self.inline_instances):
+            for FormSet, inline in zip(self.get_formsets(request), inline_instances):
                 prefix = FormSet.get_default_prefix()
                 prefixes[prefix] = prefixes.get(prefix, 0) + 1
                 if prefixes[prefix] != 1 or not prefix:
@@ -951,8 +982,7 @@ class ModelAdmin(BaseModelAdmin):
                     initial[k] = initial[k].split(",")
             form = ModelForm(initial=initial)
             prefixes = {}
-            for FormSet, inline in zip(self.get_formsets(request),
-                                       self.inline_instances):
+            for FormSet, inline in zip(self.get_formsets(request), inline_instances):
                 prefix = FormSet.get_default_prefix()
                 prefixes[prefix] = prefixes.get(prefix, 0) + 1
                 if prefixes[prefix] != 1 or not prefix:
@@ -968,7 +998,7 @@ class ModelAdmin(BaseModelAdmin):
         media = self.media + adminForm.media
 
         inline_admin_formsets = []
-        for inline, formset in zip(self.inline_instances, formsets):
+        for inline, formset in zip(inline_instances, formsets):
             fieldsets = list(inline.get_fieldsets(request))
             readonly = list(inline.get_readonly_fields(request))
             prepopulated = dict(inline.get_prepopulated_fields(request))
@@ -1012,6 +1042,7 @@ class ModelAdmin(BaseModelAdmin):
 
         ModelForm = self.get_form(request, obj)
         formsets = []
+        inline_instances = self.get_inline_instances(request.user, 'change')
         if request.method == 'POST':
             form = ModelForm(request.POST, request.FILES, instance=obj)
             if form.is_valid():
@@ -1021,8 +1052,7 @@ class ModelAdmin(BaseModelAdmin):
                 form_validated = False
                 new_object = obj
             prefixes = {}
-            for FormSet, inline in zip(self.get_formsets(request, new_object),
-                                       self.inline_instances):
+            for FormSet, inline in zip(self.get_formsets(request, new_object), inline_instances):
                 prefix = FormSet.get_default_prefix()
                 prefixes[prefix] = prefixes.get(prefix, 0) + 1
                 if prefixes[prefix] != 1 or not prefix:
@@ -1043,7 +1073,7 @@ class ModelAdmin(BaseModelAdmin):
         else:
             form = ModelForm(instance=obj)
             prefixes = {}
-            for FormSet, inline in zip(self.get_formsets(request, obj), self.inline_instances):
+            for FormSet, inline in zip(self.get_formsets(request, obj), inline_instances):
                 prefix = FormSet.get_default_prefix()
                 prefixes[prefix] = prefixes.get(prefix, 0) + 1
                 if prefixes[prefix] != 1 or not prefix:
@@ -1059,7 +1089,7 @@ class ModelAdmin(BaseModelAdmin):
         media = self.media + adminForm.media
 
         inline_admin_formsets = []
-        for inline, formset in zip(self.inline_instances, formsets):
+        for inline, formset in zip(inline_instances, formsets):
             fieldsets = list(inline.get_fieldsets(request, obj))
             readonly = list(inline.get_readonly_fields(request, obj))
             prepopulated = dict(inline.get_prepopulated_fields(request, obj))
