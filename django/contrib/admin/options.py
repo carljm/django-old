@@ -316,31 +316,20 @@ class ModelAdmin(BaseModelAdmin):
                     break
         super(ModelAdmin, self).__init__()
 
-    def get_inline_instances(self, user=None, action=None):
+    def get_inline_instances(self, request=None, action=None):
         inline_instances = []
         for inline_class in self.inlines:
             inline = inline_class(self.model, self.admin_site)
-            if user:
-                if inline.opts.auto_created:
-                    # The model was auto-created as intermediary for a
-                    # ManyToMany-relationship, find out the destination model
-                    for field in inline.opts.fields:
-                        if isinstance(field, models.ForeignKey) and field.rel.to != inline.opts.auto_created:
-                            perm_opts = field.rel.to._meta
-                else:
-                    perm_opts = inline.opts
-                perm_string = perm_opts.app_label + '.'
+            if request:
                 if action == 'change':
                     # Currently, we can't make sure the user can only edit
                     # existing inlines or only add new ones but not edit
                     # existing ones. So we only allow editing if the user
                     # has both permissions.
-                    if not user.has_perm(perm_string + perm_opts.get_change_permission()):
+                    if not inline.has_change_permission(request):
                         continue
-                if not user.has_perm(perm_string + perm_opts.get_add_permission()):
+                if not inline.has_add_permission(request):
                     continue
-                if not user.has_perm(perm_string + perm_opts.get_delete_permission()):
-                    inline.can_delete = False
             inline_instances.append(inline)
 
         return inline_instances
@@ -530,7 +519,7 @@ class ModelAdmin(BaseModelAdmin):
 
     def get_formsets(self, request, obj=None):
         action = ('change' if obj else 'add')
-        for inline in self.get_inline_instances(request.user, action):
+        for inline in self.get_inline_instances(request, action):
             yield inline.get_formset(request, obj)
 
     def get_paginator(self, request, queryset, per_page, orphans=0, allow_empty_first_page=True):
@@ -944,7 +933,7 @@ class ModelAdmin(BaseModelAdmin):
 
         ModelForm = self.get_form(request)
         formsets = []
-        inline_instances = self.get_inline_instances(request.user, 'add')
+        inline_instances = self.get_inline_instances(request, 'add')
         if request.method == 'POST':
             form = ModelForm(request.POST, request.FILES)
             if form.is_valid():
@@ -1042,7 +1031,7 @@ class ModelAdmin(BaseModelAdmin):
 
         ModelForm = self.get_form(request, obj)
         formsets = []
-        inline_instances = self.get_inline_instances(request.user, 'change')
+        inline_instances = self.get_inline_instances(request, 'change')
         if request.method == 'POST':
             form = ModelForm(request.POST, request.FILES, instance=obj)
             if form.is_valid():
@@ -1407,6 +1396,7 @@ class InlineModelAdmin(BaseModelAdmin):
         # if exclude is an empty list we use None, since that's the actual
         # default
         exclude = exclude or None
+        can_delete = self.can_delete and self.has_delete_permission(request, obj)
         defaults = {
             "form": self.form,
             "formset": self.formset,
@@ -1416,7 +1406,7 @@ class InlineModelAdmin(BaseModelAdmin):
             "formfield_callback": partial(self.formfield_for_dbfield, request=request),
             "extra": self.extra,
             "max_num": self.max_num,
-            "can_delete": self.can_delete,
+            "can_delete": can_delete,
         }
         defaults.update(kwargs)
         return inlineformset_factory(self.parent_model, self.model, **defaults)
@@ -1427,6 +1417,29 @@ class InlineModelAdmin(BaseModelAdmin):
         form = self.get_formset(request, obj).form
         fields = form.base_fields.keys() + list(self.get_readonly_fields(request, obj))
         return [(None, {'fields': fields})]
+
+    def get_permission_opts(self):
+        opts = self.opts
+        if opts.auto_created:
+            # The model was auto-created as intermediary for a
+            # ManyToMany-relationship, find out the destination model
+            for field in opts.fields:
+                if isinstance(field, models.ForeignKey) and field.rel.to != opts.auto_created:
+                    opts = field.rel.to._meta
+                    break
+        return opts
+
+    def has_add_permission(self, request):
+        opts = self.get_permission_opts()
+        return request.user.has_perm(opts.app_label + '.' + opts.get_add_permission())
+
+    def has_change_permission(self, request, obj=None):
+        opts = self.get_permission_opts()
+        return request.user.has_perm(opts.app_label + '.' + opts.get_change_permission())
+
+    def has_delete_permission(self, request, obj=None):
+        opts = self.get_permission_opts()
+        return request.user.has_perm(opts.app_label + '.' + opts.get_delete_permission())
 
 class StackedInline(InlineModelAdmin):
     template = 'admin/edit_inline/stacked.html'
