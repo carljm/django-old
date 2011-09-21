@@ -176,7 +176,7 @@ class TestInline(TestCase):
         self.assertNotContains(response, 'Add another Inner')
         self.assertNotContains(response, 'id="id_inner_set-TOTAL_FORMS"')
 
-        # Now let's add the missing permissions and make sure the inlines are shown
+        # Now let's add the missing add permissions and make sure the inlines are shown
         content_type = ContentType.objects.get_for_model(Book)
         permission = Permission.objects.get(codename='add_book', content_type=content_type)
         user.user_permissions.add(permission)
