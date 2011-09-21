@@ -1,12 +1,19 @@
 from django.contrib.admin.helpers import InlineAdminForm
+from django.contrib.auth.models import User, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
 # local test models
+<<<<<<< HEAD
 from models import (Holder, Inner, Holder2, Inner2, Holder3,
     Inner3, Person, OutfitItem, Fashionista, Teacher, Parent, Child,
     CapoFamiglia, Consigliere, SottoCapo)
 from admin import InnerInline
+=======
+from models import (Holder, Inner, InnerInline, Holder2, Inner2, Holder3,
+    Inner3, Person, OutfitItem, Fashionista, Teacher, Parent, Child,
+    Author, Book)
+>>>>>>> Add tests for the add_view inline permissions
 
 
 class TestInline(TestCase):
@@ -141,6 +148,51 @@ class TestInline(TestCase):
                 '<input id="id_-2-0-name" type="text" class="vTextField" '
                 'name="-2-0-name" maxlength="100" />')
 
+    def test_inline_permissions(self):
+        """
+        Make sure the admin respects permissions for objects that are edited
+        inline. Ref #8060.
+        """
+        user = User.objects.get(username='super')
+        user.is_superuser = False
+        content_type = ContentType.objects.get_for_model(Author)
+        permission = Permission.objects.get(codename='add_author', content_type=content_type)
+        user.user_permissions.add(permission)
+        content_type = ContentType.objects.get_for_model(Holder)
+        permission = Permission.objects.get(codename='add_holder', content_type=content_type)
+        user.user_permissions.add(permission)
+        user.save()
+
+        # Make sure both ForeignKey as well as ManyToMany inlines are properly removed
+        response = self.client.get('/test_admin/admin/admin_inlines/author/add/')
+        # This would be a TabularInline
+        self.assertNotContains(response, '<h2>Author-book relationships</h2>')
+        self.assertNotContains(response, 'Add another Author-Book Relationship')
+        self.assertNotContains(response, 'id="id_Author_books-TOTAL_FORMS"')
+
+        response = self.client.get('/test_admin/admin/admin_inlines/holder/add/')
+        # This would be a StackedInline
+        self.assertNotContains(response, '<h2>Inners</h2>')
+        self.assertNotContains(response, 'Add another Inner')
+        self.assertNotContains(response, 'id="id_inner_set-TOTAL_FORMS"')
+
+        # Now let's add the missing permissions and make sure the inlines are shown
+        content_type = ContentType.objects.get_for_model(Book)
+        permission = Permission.objects.get(codename='add_book', content_type=content_type)
+        user.user_permissions.add(permission)
+        content_type = ContentType.objects.get_for_model(Inner)
+        permission = Permission.objects.get(codename='add_inner', content_type=content_type)
+        user.user_permissions.add(permission)
+
+        response = self.client.get('/test_admin/admin/admin_inlines/author/add/')
+        self.assertContains(response, '<h2>Author-book relationships</h2>')
+        self.assertContains(response, 'Add another Author-Book Relationship')
+        self.assertContains(response, 'id="id_Author_books-TOTAL_FORMS"')
+
+        response = self.client.get('/test_admin/admin/admin_inlines/holder/add/')
+        self.assertContains(response, '<h2>Inners</h2>')
+        self.assertContains(response, 'Add another Inner')
+        self.assertContains(response, 'id="id_inner_set-TOTAL_FORMS"')
 
 class TestInlineMedia(TestCase):
     urls = "regressiontests.admin_inlines.urls"
