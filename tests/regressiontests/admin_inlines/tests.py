@@ -4,16 +4,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 
 # local test models
-<<<<<<< HEAD
 from models import (Holder, Inner, Holder2, Inner2, Holder3,
     Inner3, Person, OutfitItem, Fashionista, Teacher, Parent, Child,
-    CapoFamiglia, Consigliere, SottoCapo)
+    CapoFamiglia, Consigliere, SottoCapo, Author, Book)
 from admin import InnerInline
-=======
-from models import (Holder, Inner, InnerInline, Holder2, Inner2, Holder3,
-    Inner3, Person, OutfitItem, Fashionista, Teacher, Parent, Child,
-    Author, Book)
->>>>>>> Add tests for the add_view inline permissions
 
 
 class TestInline(TestCase):
@@ -164,13 +158,13 @@ class TestInline(TestCase):
         user.save()
 
         # Make sure both ForeignKey as well as ManyToMany inlines are properly removed
-        response = self.client.get('/test_admin/admin/admin_inlines/author/add/')
+        response = self.client.get('/admin/admin_inlines/author/add/')
         # This would be a TabularInline
         self.assertNotContains(response, '<h2>Author-book relationships</h2>')
         self.assertNotContains(response, 'Add another Author-Book Relationship')
         self.assertNotContains(response, 'id="id_Author_books-TOTAL_FORMS"')
 
-        response = self.client.get('/test_admin/admin/admin_inlines/holder/add/')
+        response = self.client.get('/admin/admin_inlines/holder/add/')
         # This would be a StackedInline
         self.assertNotContains(response, '<h2>Inners</h2>')
         self.assertNotContains(response, 'Add another Inner')
@@ -184,12 +178,12 @@ class TestInline(TestCase):
         permission = Permission.objects.get(codename='add_inner', content_type=content_type)
         user.user_permissions.add(permission)
 
-        response = self.client.get('/test_admin/admin/admin_inlines/author/add/')
+        response = self.client.get('/admin/admin_inlines/author/add/')
         self.assertContains(response, '<h2>Author-book relationships</h2>')
         self.assertContains(response, 'Add another Author-Book Relationship')
         self.assertContains(response, 'id="id_Author_books-TOTAL_FORMS"')
 
-        response = self.client.get('/test_admin/admin/admin_inlines/holder/add/')
+        response = self.client.get('/admin/admin_inlines/holder/add/')
         self.assertContains(response, '<h2>Inners</h2>')
         self.assertContains(response, 'Add another Inner')
         self.assertContains(response, 'id="id_inner_set-TOTAL_FORMS"')
