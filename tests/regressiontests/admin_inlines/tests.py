@@ -218,17 +218,16 @@ class TestInline(TestCase):
         self.assertNotContains(response, '<input type="hidden" name="inner_set-0-id" value="1"')
 
         # Add the change permissions and check that existing data is shown.
-        # Deleting should not be possible.
         permission = Permission.objects.get(codename='change_book', content_type=book_ct)
         user.user_permissions.add(permission)
         permission = Permission.objects.get(codename='change_inner', content_type=inner_ct)
         user.user_permissions.add(permission)
         response = self.client.get('/admin/admin_inlines/author/1/')
         self.assertContains(response, '<input type="hidden" name="Author_books-0-id" value="1"')
+        # Deleting should not be possible.
         self.assertNotContains(response, 'id="id_Author_books-0-DELETE"')
         response = self.client.get(self.change_url)
         self.assertContains(response, '<input type="hidden" name="inner_set-0-id" value="1"')
-        #self.assertNotContains(response, 'id="id_Author_books-0-DELETE"')
 
         # Remove the add permissions. inlines should still be there, but
         # no possibility to add data
