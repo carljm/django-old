@@ -149,17 +149,32 @@ class TestInline(TestCase):
         """
         user = User.objects.get(username='super')
         user.is_superuser = False
-        content_type = ContentType.objects.get_for_model(Author)
-        permission = Permission.objects.get(codename='add_author', content_type=content_type)
-        user.user_permissions.add(permission)
-        content_type = ContentType.objects.get_for_model(Holder)
-        permission = Permission.objects.get(codename='add_holder', content_type=content_type)
-        user.user_permissions.add(permission)
         user.save()
+
+        author_ct = ContentType.objects.get_for_model(Author)
+        holder_ct = ContentType.objects.get_for_model(Holder)
+        book_ct = ContentType.objects.get_for_model(Book)
+        inner_ct = ContentType.objects.get_for_model(Inner)
+
+        permission = Permission.objects.get(codename='add_author', content_type=author_ct)
+        user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='change_author', content_type=author_ct)
+        user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='add_holder', content_type=holder_ct)
+        user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='change_holder', content_type=holder_ct)
+        user.user_permissions.add(permission)
+
+        author = Author.objects.create(pk=1, name=u'The Author')
+        author.books.create(name=u'The inline Book')
 
         # Make sure both ForeignKey as well as ManyToMany inlines are properly removed
         response = self.client.get('/admin/admin_inlines/author/add/')
         # This would be a TabularInline
+        self.assertNotContains(response, '<h2>Author-book relationships</h2>')
+        self.assertNotContains(response, 'Add another Author-Book Relationship')
+        self.assertNotContains(response, 'id="id_Author_books-TOTAL_FORMS"')
+        response = self.client.get('/admin/admin_inlines/author/1/')
         self.assertNotContains(response, '<h2>Author-book relationships</h2>')
         self.assertNotContains(response, 'Add another Author-Book Relationship')
         self.assertNotContains(response, 'id="id_Author_books-TOTAL_FORMS"')
@@ -169,24 +184,74 @@ class TestInline(TestCase):
         self.assertNotContains(response, '<h2>Inners</h2>')
         self.assertNotContains(response, 'Add another Inner')
         self.assertNotContains(response, 'id="id_inner_set-TOTAL_FORMS"')
+        response = self.client.get(self.change_url)
+        self.assertNotContains(response, '<h2>Inners</h2>')
+        self.assertNotContains(response, 'Add another Inner')
+        self.assertNotContains(response, 'id="id_inner_set-TOTAL_FORMS"')
 
         # Now let's add the missing add permissions and make sure the inlines are shown
-        content_type = ContentType.objects.get_for_model(Book)
-        permission = Permission.objects.get(codename='add_book', content_type=content_type)
+        permission = Permission.objects.get(codename='add_book', content_type=book_ct)
         user.user_permissions.add(permission)
-        content_type = ContentType.objects.get_for_model(Inner)
-        permission = Permission.objects.get(codename='add_inner', content_type=content_type)
+        permission = Permission.objects.get(codename='add_inner', content_type=inner_ct)
         user.user_permissions.add(permission)
 
         response = self.client.get('/admin/admin_inlines/author/add/')
         self.assertContains(response, '<h2>Author-book relationships</h2>')
         self.assertContains(response, 'Add another Author-Book Relationship')
-        self.assertContains(response, 'id="id_Author_books-TOTAL_FORMS"')
-
+        self.assertContains(response, 'value="3" id="id_Author_books-TOTAL_FORMS"')
         response = self.client.get('/admin/admin_inlines/holder/add/')
         self.assertContains(response, '<h2>Inners</h2>')
         self.assertContains(response, 'Add another Inner')
-        self.assertContains(response, 'id="id_inner_set-TOTAL_FORMS"')
+        self.assertContains(response, 'value="3" id="id_inner_set-TOTAL_FORMS"')
+
+        # The inlines should be in the change view as well, but existing data
+        # should not be shown
+        response = self.client.get('/admin/admin_inlines/author/1/')
+        self.assertContains(response, '<h2>Author-book relationships</h2>')
+        self.assertContains(response, 'Add another Author-Book Relationship')
+        self.assertContains(response, 'value="3" id="id_Author_books-TOTAL_FORMS"')
+        self.assertNotContains(response, '<input type="hidden" name="Author_books-0-id" value="1"')
+        response = self.client.get(self.change_url)
+        self.assertContains(response, '<h2>Inners</h2>')
+        self.assertContains(response, 'Add another Inner')
+        self.assertContains(response, 'value="3" id="id_inner_set-TOTAL_FORMS"')
+        self.assertNotContains(response, '<input type="hidden" name="inner_set-0-id" value="1"')
+
+        # Add the change permissions and check that existing data is shown.
+        # Deleting should not be possible.
+        permission = Permission.objects.get(codename='change_book', content_type=book_ct)
+        user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='change_inner', content_type=inner_ct)
+        user.user_permissions.add(permission)
+        response = self.client.get('/admin/admin_inlines/author/1/')
+        self.assertContains(response, '<input type="hidden" name="Author_books-0-id" value="1"')
+        self.assertNotContains(response, 'id="id_Author_books-0-DELETE"')
+        response = self.client.get(self.change_url)
+        self.assertContains(response, '<input type="hidden" name="inner_set-0-id" value="1"')
+        #self.assertNotContains(response, 'id="id_Author_books-0-DELETE"')
+
+        # Remove the add permissions. inlines should still be there, but
+        # no possibility to add data
+        permission = Permission.objects.get(codename='add_book', content_type=book_ct)
+        user.user_permissions.remove(permission)
+        permission = Permission.objects.get(codename='add_inner', content_type=inner_ct)
+        user.user_permissions.remove(permission)
+        response = self.client.get('/admin/admin_inlines/author/1/')
+        self.assertContains(response, '<h2>Author-book relationships</h2>')
+        self.assertContains(response, '<input type="hidden" name="Author_books-0-id" value="1"')
+        self.assertContains(response, 'value="1" id="id_Author_books-TOTAL_FORMS"')
+        response = self.client.get(self.change_url)
+        self.assertContains(response, '<h2>Inners</h2>')
+        self.assertContains(response, '<input type="hidden" name="inner_set-0-id" value="1"')
+        self.assertContains(response, 'value="1" id="id_inner_set-TOTAL_FORMS"')
+
+        # Check that deletion is possible with the appropriate permissions.
+        # Deletion is only possible for the Author-Book relationship since the
+        # foreign key from Inner to Holder does not allow NULL values.
+        permission = Permission.objects.get(codename='delete_book', content_type=book_ct)
+        user.user_permissions.add(permission)
+        response = self.client.get('/admin/admin_inlines/author/1/')
+        self.assertContains(response, 'id="id_Author_books-0-DELETE"')
 
 class TestInlineMedia(TestCase):
     urls = "regressiontests.admin_inlines.urls"

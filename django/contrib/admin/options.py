@@ -270,6 +270,41 @@ class BaseModelAdmin(object):
             clean_lookup = LOOKUP_SEP.join(parts)
             return clean_lookup in self.list_filter or clean_lookup == self.date_hierarchy
 
+    def has_add_permission(self, request):
+        """
+        Returns True if the given request has permission to add an object.
+        Can be overriden by the user in subclasses.
+        """
+        opts = self.opts
+        return request.user.has_perm(opts.app_label + '.' + opts.get_add_permission())
+
+    def has_change_permission(self, request, obj=None):
+        """
+        Returns True if the given request has permission to change the given
+        Django model instance, the default implementation doesn't examine the
+        `obj` parameter.
+
+        Can be overriden by the user in subclasses. In such case it should
+        return True if the given request has permission to change the `obj`
+        model instance. If `obj` is None, this should return True if the given
+        request has permission to change *any* object of the given type.
+        """
+        opts = self.opts
+        return request.user.has_perm(opts.app_label + '.' + opts.get_change_permission())
+
+    def has_delete_permission(self, request, obj=None):
+        """
+        Returns True if the given request has permission to change the given
+        Django model instance, the default implementation doesn't examine the
+        `obj` parameter.
+
+        Can be overriden by the user in subclasses. In such case it should
+        return True if the given request has permission to delete the `obj`
+        model instance. If `obj` is None, this should return True if the given
+        request has permission to delete *any* object of the given type.
+        """
+        opts = self.opts
+        return request.user.has_perm(opts.app_label + '.' + opts.get_delete_permission())
 
 class ModelAdmin(BaseModelAdmin):
     "Encapsulates all admin options and functionality for a given model."
@@ -321,15 +356,11 @@ class ModelAdmin(BaseModelAdmin):
         for inline_class in self.inlines:
             inline = inline_class(self.model, self.admin_site)
             if request:
-                if action == 'change':
-                    # Currently, we can't make sure the user can only edit
-                    # existing inlines or only add new ones but not edit
-                    # existing ones. So we only allow editing if the user
-                    # has both permissions.
-                    if not inline.has_change_permission(request):
-                        continue
-                if not inline.has_add_permission(request):
+                if not ((action == 'add' and inline.has_add_permission(request)) or
+                    (inline.has_add_permission(request) or inline.has_change_permission(request) or inline.has_delete_permission(request))):
                     continue
+                if action == 'change' and not inline.has_add_permission(request):
+                    inline.max_num = 0
             inline_instances.append(inline)
 
         return inline_instances
@@ -386,42 +417,6 @@ class ModelAdmin(BaseModelAdmin):
         if self.opts.get_ordered_objects():
             js.extend(['getElementsBySelector.js', 'dom-drag.js' , 'admin/ordering.js'])
         return forms.Media(js=[static('admin/js/%s' % url) for url in js])
-
-    def has_add_permission(self, request):
-        """
-        Returns True if the given request has permission to add an object.
-        Can be overriden by the user in subclasses.
-        """
-        opts = self.opts
-        return request.user.has_perm(opts.app_label + '.' + opts.get_add_permission())
-
-    def has_change_permission(self, request, obj=None):
-        """
-        Returns True if the given request has permission to change the given
-        Django model instance, the default implementation doesn't examine the
-        `obj` parameter.
-
-        Can be overriden by the user in subclasses. In such case it should
-        return True if the given request has permission to change the `obj`
-        model instance. If `obj` is None, this should return True if the given
-        request has permission to change *any* object of the given type.
-        """
-        opts = self.opts
-        return request.user.has_perm(opts.app_label + '.' + opts.get_change_permission())
-
-    def has_delete_permission(self, request, obj=None):
-        """
-        Returns True if the given request has permission to change the given
-        Django model instance, the default implementation doesn't examine the
-        `obj` parameter.
-
-        Can be overriden by the user in subclasses. In such case it should
-        return True if the given request has permission to delete the `obj`
-        model instance. If `obj` is None, this should return True if the given
-        request has permission to delete *any* object of the given type.
-        """
-        opts = self.opts
-        return request.user.has_perm(opts.app_label + '.' + opts.get_delete_permission())
 
     def get_model_perms(self, request):
         """
@@ -1396,7 +1391,9 @@ class InlineModelAdmin(BaseModelAdmin):
         # if exclude is an empty list we use None, since that's the actual
         # default
         exclude = exclude or None
-        can_delete = self.can_delete and self.has_delete_permission(request, obj)
+        can_delete = self.can_delete
+        if request:  # some tests pass None as request
+            can_delete = can_delete and self.has_delete_permission(request, obj)
         defaults = {
             "form": self.form,
             "formset": self.formset,
@@ -1417,6 +1414,12 @@ class InlineModelAdmin(BaseModelAdmin):
         form = self.get_formset(request, obj).form
         fields = form.base_fields.keys() + list(self.get_readonly_fields(request, obj))
         return [(None, {'fields': fields})]
+
+    def queryset(self, request):
+        queryset = super(InlineModelAdmin, self).queryset(request)
+        if request and not self.has_change_permission(request):
+            queryset = queryset.filter(pk__isnull=True)
+        return queryset
 
     def get_permission_opts(self):
         opts = self.opts
