@@ -224,7 +224,7 @@ class TestInline(TestCase):
         user.user_permissions.add(permission)
         response = self.client.get('/admin/admin_inlines/author/1/')
         self.assertContains(response, '<input type="hidden" name="Author_books-0-id" value="1"')
-        # Deleting should not be possible.
+        # Deletion should not be possible.
         self.assertNotContains(response, 'id="id_Author_books-0-DELETE"')
         response = self.client.get(self.change_url)
         self.assertContains(response, '<input type="hidden" name="inner_set-0-id" value="1"')
