@@ -357,9 +357,10 @@ class ModelAdminTests(TestCase):
 
         concert = Concert.objects.create(main_band=self.band, opening_band=self.band, day=1)
         ma = BandAdmin(Band, self.site)
-        fieldsets = list(ma.inline_instances[0].get_fieldsets(request))
+        inline_instances = ma.get_inline_instances(request)
+        fieldsets = list(inline_instances[0].get_fieldsets(request))
         self.assertEqual(fieldsets[0][1]['fields'], ['main_band', 'opening_band', 'day', 'transport'])
-        fieldsets = list(ma.inline_instances[0].get_fieldsets(request, ma.inline_instances[0].model))
+        fieldsets = list(inline_instances[0].get_fieldsets(request, inline_instances[0].model))
         self.assertEqual(fieldsets[0][1]['fields'], ['day'])
 
     # radio_fields behavior ###########################################

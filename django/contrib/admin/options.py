@@ -351,23 +351,20 @@ class ModelAdmin(BaseModelAdmin):
                     break
         super(ModelAdmin, self).__init__()
 
-    def get_inline_instances(self, request=None, action=None):
+    def get_inline_instances(self, request):
         inline_instances = []
         for inline_class in self.inlines:
             inline = inline_class(self.model, self.admin_site)
             if request:
-                if not ((action == 'add' and inline.has_add_permission(request)) or
-                    (inline.has_add_permission(request) or inline.has_change_permission(request) or inline.has_delete_permission(request))):
+                if not (inline.has_add_permission(request) or
+                        inline.has_change_permission(request) or
+                        inline.has_delete_permission(request)):
                     continue
-                if action == 'change' and not inline.has_add_permission(request):
+                if not inline.has_add_permission(request):
                     inline.max_num = 0
             inline_instances.append(inline)
 
         return inline_instances
-
-    @property
-    def inline_instances(self):
-        return self.get_inline_instances()
 
     def get_urls(self):
         from django.conf.urls import patterns, url
@@ -513,8 +510,7 @@ class ModelAdmin(BaseModelAdmin):
             fields=self.list_editable, **defaults)
 
     def get_formsets(self, request, obj=None):
-        action = ('change' if obj else 'add')
-        for inline in self.get_inline_instances(request, action):
+        for inline in self.get_inline_instances(request):
             yield inline.get_formset(request, obj)
 
     def get_paginator(self, request, queryset, per_page, orphans=0, allow_empty_first_page=True):
@@ -928,7 +924,7 @@ class ModelAdmin(BaseModelAdmin):
 
         ModelForm = self.get_form(request)
         formsets = []
-        inline_instances = self.get_inline_instances(request, 'add')
+        inline_instances = self.get_inline_instances(request)
         if request.method == 'POST':
             form = ModelForm(request.POST, request.FILES)
             if form.is_valid():
@@ -1026,7 +1022,7 @@ class ModelAdmin(BaseModelAdmin):
 
         ModelForm = self.get_form(request, obj)
         formsets = []
-        inline_instances = self.get_inline_instances(request, 'change')
+        inline_instances = self.get_inline_instances(request)
         if request.method == 'POST':
             form = ModelForm(request.POST, request.FILES, instance=obj)
             if form.is_valid():
