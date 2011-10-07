@@ -1397,19 +1397,11 @@ adds some of its own (the shared features are actually defined in the
 - :meth:`~ModelAdmin.has_change_permission`
 - :meth:`~ModelAdmin.has_delete_permission`
 
-.. note::
-
-    When calling these methods for an inline that represents a
-    :class:`~django.db.models.ManyToManyField` and you did not specify a
-    :attr:`~django.db.models.ManyToManyField.through` model, the change permission of
-    the related model is checked when determining if the user has add,
-    change oder delete rights for the ManyToMany relationship.
-
 The ``InlineModelAdmin`` class adds:
 
 .. attribute:: InlineModelAdmin.model
 
-    The model in which the inline is using. This is required.
+    The model which the inline is using. This is required.
 
 .. attribute:: InlineModelAdmin.fk_name
 

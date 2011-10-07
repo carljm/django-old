@@ -1387,9 +1387,7 @@ class InlineModelAdmin(BaseModelAdmin):
         # if exclude is an empty list we use None, since that's the actual
         # default
         exclude = exclude or None
-        can_delete = self.can_delete
-        if request:  # some tests pass None as request
-            can_delete = can_delete and self.has_delete_permission(request, obj)
+        can_delete = self.can_delete and self.has_delete_permission(request, obj)
         defaults = {
             "form": self.form,
             "formset": self.formset,
@@ -1413,44 +1411,41 @@ class InlineModelAdmin(BaseModelAdmin):
 
     def queryset(self, request):
         queryset = super(InlineModelAdmin, self).queryset(request)
-        if request and not self.has_change_permission(request):
+        if not self.has_change_permission(request):
             queryset = queryset.none()
         return queryset
 
-    def get_permission_opts(self):
+    def has_add_permission(self, request):
+        if self.opts.auto_created:
+            # We're checking the rights to an auto-created intermediate model,
+            # which doesn't have its own individual permissions. The user needs
+            # to have the change permission for the related model in order to
+            # be able to do anything with the intermediate model.
+            return self.has_change_permission(request)
+        return request.user.has_perm(
+            self.opts.app_label + '.' + self.opts.get_add_permission())
+
+    def has_change_permission(self, request, obj=None):
         opts = self.opts
         if opts.auto_created:
             # The model was auto-created as intermediary for a
-            # ManyToMany-relationship, find out the destination model
+            # ManyToMany-relationship, find the target model
             for field in opts.fields:
-                if isinstance(field, models.ForeignKey) and field.rel.to != opts.auto_created:
+                if field.rel and field.rel.to != self.parent_model:
                     opts = field.rel.to._meta
                     break
-        return opts
-
-    def has_add_permission(self, request):
-        if self.opts.auto_created:
-            # We're checking the rights to an auto-created intermediate model. As per
-            # the discussion on ticket #8060, the user needs to have the change permission
-            # for the related model in order to be able to do anything with the
-            # intermediate model.
-            return self.has_change_permission(request)
-        opts = self.get_permission_opts()
-        return request.user.has_perm(opts.app_label + '.' + opts.get_add_permission())
-
-    def has_change_permission(self, request, obj=None):
-        opts = self.get_permission_opts()
-        return request.user.has_perm(opts.app_label + '.' + opts.get_change_permission())
+        return request.user.has_perm(
+            opts.app_label + '.' + opts.get_change_permission())
 
     def has_delete_permission(self, request, obj=None):
         if self.opts.auto_created:
-            # We're checking the rights to an auto-created intermediate model. As per
-            # the discussion on ticket #8060, the user needs to have the change permission
-            # for the related model in order to be able to do anything with the
-            # intermediate model.
+            # We're checking the rights to an auto-created intermediate model,
+            # which doesn't have its own individual permissions. The user needs
+            # to have the change permission for the related model in order to
+            # be able to do anything with the intermediate model.
             return self.has_change_permission(request, obj)
-        opts = self.get_permission_opts()
-        return request.user.has_perm(opts.app_label + '.' + opts.get_delete_permission())
+        return request.user.has_perm(
+            self.opts.app_label + '.' + self.opts.get_delete_permission())
 
 class StackedInline(InlineModelAdmin):
     template = 'admin/edit_inline/stacked.html'

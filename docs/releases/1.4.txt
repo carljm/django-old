@@ -132,9 +132,10 @@ Admin inlines respect user permissions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Admin inlines will now only allow those actions for which the user has
-permission. For ManyToMany relationships without explicit intermediate
-model, the change permission of the related model is checked when determining
-if the user has the permission to add, change or delete relationships.
+permission. For ``ManyToMany`` relationships with an auto-created intermediate
+model (which does not have its own permissions), the change permission for the
+related model determines if the user has the permission to add, change or
+delete relationships.
 
 Tools for cryptographic signing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

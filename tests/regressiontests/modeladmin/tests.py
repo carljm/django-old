@@ -19,9 +19,15 @@ from models import (Band, Concert, ValidationTestModel,
     ValidationTestInlineModel)
 
 
-# None of the following tests really depend on the content of the request,
-# so we'll just pass in None.
-request = None
+class MockRequest(object):
+    pass
+
+class MockSuperUser(object):
+    def has_perm(self, perm):
+        return True
+
+request = MockRequest()
+request.user = MockSuperUser()
 
 
 class ModelAdminTests(TestCase):

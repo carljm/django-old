@@ -6,7 +6,7 @@ from django.test import TestCase
 # local test models
 from models import (Holder, Inner, Holder2, Inner2, Holder3,
     Inner3, Person, OutfitItem, Fashionista, Teacher, Parent, Child,
-    Author, Book, TitleCollection, Title)
+    Author, Book)
 from admin import InnerInline
 
 
@@ -200,118 +200,111 @@ class TestInlineAdminForm(TestCase):
 class TestInlinePermissions(TestCase):
     """
     Make sure the admin respects permissions for objects that are edited
-    inline. Ref #8060.
+    inline. Refs #8060.
+
     """
     urls = "regressiontests.admin_inlines.urls"
-    fixtures = ['admin-views-users.xml']
 
     def setUp(self):
-        self.user = User.objects.get(username='super')
-        self.user.is_superuser = False
+        self.user = User(username='admin')
+        self.user.is_staff = True
+        self.user.is_active = True
+        self.user.set_password('secret')
         self.user.save()
 
         self.author_ct = ContentType.objects.get_for_model(Author)
-        self.holder_ct = ContentType.objects.get_for_model(Holder)
+        self.holder_ct = ContentType.objects.get_for_model(Holder2)
         self.book_ct = ContentType.objects.get_for_model(Book)
-        self.inner_ct = ContentType.objects.get_for_model(Inner)
+        self.inner_ct = ContentType.objects.get_for_model(Inner2)
+
+        # User always has permissions to add and change Authors, and Holders,
+        # the main (parent) models of the inlines. Permissions on the inlines
+        # vary per test.
+        permission = Permission.objects.get(codename='add_author', content_type=self.author_ct)
+        self.user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='change_author', content_type=self.author_ct)
+        self.user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='add_holder2', content_type=self.holder_ct)
+        self.user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='change_holder2', content_type=self.holder_ct)
+        self.user.user_permissions.add(permission)
 
         author = Author.objects.create(pk=1, name=u'The Author')
         author.books.create(name=u'The inline Book')
-        holder = Holder(dummy=13)
-        holder.save()
-        Inner(dummy=42, holder=holder).save()
-        self.change_url = '/admin/admin_inlines/holder/%i/' % holder.id
+        self.author_change_url = '/admin/admin_inlines/author/%i/' % author.id
 
-        result = self.client.login(username='super', password='secret')
-        self.assertEqual(result, True)
+        holder = Holder2.objects.create(dummy=13)
+        Inner2.objects.create(dummy=42, holder=holder)
+        self.holder_change_url = '/admin/admin_inlines/holder2/%i/' % holder.id
+
+        self.assertEqual(
+            self.client.login(username='admin', password='secret'),
+            True)
 
     def tearDown(self):
         self.client.logout()
 
     def test_inline_add_m2m_noperm(self):
-        user = self.user
-        permission = Permission.objects.get(codename='add_author', content_type=self.author_ct)
-        user.user_permissions.add(permission)
-        # Make sure the inline is removed
         response = self.client.get('/admin/admin_inlines/author/add/')
-        # This would be a TabularInline
+        # No change permission on books, so no inline
         self.assertNotContains(response, '<h2>Author-book relationships</h2>')
         self.assertNotContains(response, 'Add another Author-Book Relationship')
         self.assertNotContains(response, 'id="id_Author_books-TOTAL_FORMS"')
 
     def test_inline_add_fk_noperm(self):
-        user = self.user
-        permission = Permission.objects.get(codename='add_holder', content_type=self.holder_ct)
-        user.user_permissions.add(permission)
-        response = self.client.get('/admin/admin_inlines/holder/add/')
-        # This would be a StackedInline
-        self.assertNotContains(response, '<h2>Inners</h2>')
-        self.assertNotContains(response, 'Add another Inner')
-        self.assertNotContains(response, 'id="id_inner_set-TOTAL_FORMS"')
+        response = self.client.get('/admin/admin_inlines/holder2/add/')
+        # No permissions on Inner2s, so no inline
+        self.assertNotContains(response, '<h2>Inner2s</h2>')
+        self.assertNotContains(response, 'Add another Inner2')
+        self.assertNotContains(response, 'id="id_inner2_set-TOTAL_FORMS"')
 
     def test_inline_change_m2m_noperm(self):
-        user = self.user
-        permission = Permission.objects.get(codename='change_author', content_type=self.author_ct)
-        user.user_permissions.add(permission)
-        response = self.client.get('/admin/admin_inlines/author/1/')
+        response = self.client.get(self.author_change_url)
+        # No change permission on books, so no inline
         self.assertNotContains(response, '<h2>Author-book relationships</h2>')
         self.assertNotContains(response, 'Add another Author-Book Relationship')
         self.assertNotContains(response, 'id="id_Author_books-TOTAL_FORMS"')
 
     def test_inline_change_fk_noperm(self):
-        user = self.user
-        permission = Permission.objects.get(codename='change_holder', content_type=self.holder_ct)
-        user.user_permissions.add(permission)
-        response = self.client.get(self.change_url)
-        self.assertNotContains(response, '<h2>Inners</h2>')
-        self.assertNotContains(response, 'Add another Inner')
-        self.assertNotContains(response, 'id="id_inner_set-TOTAL_FORMS"')
+        response = self.client.get(self.holder_change_url)
+        # No permissions on Inner2s, so no inline
+        self.assertNotContains(response, '<h2>Inner2s</h2>')
+        self.assertNotContains(response, 'Add another Inner2')
+        self.assertNotContains(response, 'id="id_inner2_set-TOTAL_FORMS"')
 
     def test_inline_add_m2m_add_perm(self):
-        user = self.user
-        permission = Permission.objects.get(codename='add_author', content_type=self.author_ct)
-        user.user_permissions.add(permission)
         permission = Permission.objects.get(codename='add_book', content_type=self.book_ct)
-        user.user_permissions.add(permission)
+        self.user.user_permissions.add(permission)
         response = self.client.get('/admin/admin_inlines/author/add/')
+        # No change permission on Books, so no inline
         self.assertNotContains(response, '<h2>Author-book relationships</h2>')
         self.assertNotContains(response, 'Add another Author-Book Relationship')
         self.assertNotContains(response, 'id="id_Author_books-TOTAL_FORMS"')
 
     def test_inline_add_fk_add_perm(self):
-        user = self.user
-        permission = Permission.objects.get(codename='add_holder', content_type=self.holder_ct)
-        user.user_permissions.add(permission)
-        permission = Permission.objects.get(codename='add_inner', content_type=self.inner_ct)
-        user.user_permissions.add(permission)
-        response = self.client.get('/admin/admin_inlines/holder/add/')
-        self.assertContains(response, '<h2>Inners</h2>')
-        self.assertContains(response, 'Add another Inner')
-        self.assertContains(response, 'value="3" id="id_inner_set-TOTAL_FORMS"')
+        permission = Permission.objects.get(codename='add_inner2', content_type=self.inner_ct)
+        self.user.user_permissions.add(permission)
+        response = self.client.get('/admin/admin_inlines/holder2/add/')
+        # Add permission on inner2s, so we get the inline
+        self.assertContains(response, '<h2>Inner2s</h2>')
+        self.assertContains(response, 'Add another Inner2')
+        self.assertContains(response, 'value="3" id="id_inner2_set-TOTAL_FORMS"')
 
     def test_inline_change_m2m_add_perm(self):
-        # We need the change permission on the related model to make changes to the
-        # intermediate model.
-        user = self.user
-        permission = Permission.objects.get(codename='change_author', content_type=self.author_ct)
-        user.user_permissions.add(permission)
         permission = Permission.objects.get(codename='add_book', content_type=self.book_ct)
-        user.user_permissions.add(permission)
-        response = self.client.get('/admin/admin_inlines/author/1/')
+        self.user.user_permissions.add(permission)
+        response = self.client.get(self.author_change_url)
+        # No change permission on books, so no inline
         self.assertNotContains(response, '<h2>Author-book relationships</h2>')
         self.assertNotContains(response, 'Add another Author-Book Relationship')
         self.assertNotContains(response, 'id="id_Author_books-TOTAL_FORMS"')
         self.assertNotContains(response, 'id="id_Author_books-0-DELETE"')
 
     def test_inline_change_m2m_change_perm(self):
-        # Editing the preexisting m2m relation as well as adding additional
-        # ones should be possible.
-        user = self.user
-        permission = Permission.objects.get(codename='change_author', content_type=self.author_ct)
-        user.user_permissions.add(permission)
         permission = Permission.objects.get(codename='change_book', content_type=self.book_ct)
-        user.user_permissions.add(permission)
-        response = self.client.get('/admin/admin_inlines/author/1/')
+        self.user.user_permissions.add(permission)
+        response = self.client.get(self.author_change_url)
+        # We have change perm on books, so we can add/change/delete inlines
         self.assertContains(response, '<h2>Author-book relationships</h2>')
         self.assertContains(response, 'Add another Author-Book Relationship')
         self.assertContains(response, 'value="4" id="id_Author_books-TOTAL_FORMS"')
@@ -319,55 +312,66 @@ class TestInlinePermissions(TestCase):
         self.assertContains(response, 'id="id_Author_books-0-DELETE"')
 
     def test_inline_change_fk_add_perm(self):
-        user = self.user
-        permission = Permission.objects.get(codename='change_holder', content_type=self.holder_ct)
-        user.user_permissions.add(permission)
-        permission = Permission.objects.get(codename='add_inner', content_type=self.inner_ct)
-        user.user_permissions.add(permission)
-        response = self.client.get(self.change_url)
-        self.assertContains(response, '<h2>Inners</h2>')
-        self.assertContains(response, 'Add another Inner')
-        self.assertContains(response, 'value="3" id="id_inner_set-TOTAL_FORMS"')
-        self.assertNotContains(response, '<input type="hidden" name="inner_set-0-id" value="1"')
+        permission = Permission.objects.get(codename='add_inner2', content_type=self.inner_ct)
+        self.user.user_permissions.add(permission)
+        response = self.client.get(self.holder_change_url)
+        # Add permission on inner2s, so we can add but not modify existing
+        self.assertContains(response, '<h2>Inner2s</h2>')
+        self.assertContains(response, 'Add another Inner2')
+        # 3 extra forms only, not the existing instance form
+        self.assertContains(response, 'value="3" id="id_inner2_set-TOTAL_FORMS"')
+        self.assertNotContains(response, '<input type="hidden" name="inner2_set-0-id" value="1"')
 
     def test_inline_change_fk_change_perm(self):
-        user = self.user
-        permission = Permission.objects.get(codename='change_holder', content_type=self.holder_ct)
-        user.user_permissions.add(permission)
-        permission = Permission.objects.get(codename='change_inner', content_type=self.inner_ct)
-        user.user_permissions.add(permission)
-        response = self.client.get(self.change_url)
-        self.assertContains(response, '<h2>Inners</h2>')
-        self.assertContains(response, 'value="1" id="id_inner_set-TOTAL_FORMS"')
-        self.assertContains(response, '<input type="hidden" name="inner_set-0-id" value="1"')
+        permission = Permission.objects.get(codename='change_inner2', content_type=self.inner_ct)
+        self.user.user_permissions.add(permission)
+        response = self.client.get(self.holder_change_url)
+        # Change permission on inner2s, so we can change existing but not add new
+        self.assertContains(response, '<h2>Inner2s</h2>')
+        # Just the one form for existing instances
+        self.assertContains(response, 'value="1" id="id_inner2_set-TOTAL_FORMS"')
+        self.assertContains(response, '<input type="hidden" name="inner2_set-0-id" value="1"')
+        # max-num 0 means we can't add new ones
+        self.assertContains(response, 'value="0" id="id_inner2_set-MAX_NUM_FORMS"')
 
     def test_inline_change_fk_add_change_perm(self):
-        user = self.user
-        permission = Permission.objects.get(codename='change_holder', content_type=self.holder_ct)
-        user.user_permissions.add(permission)
-        permission = Permission.objects.get(codename='add_inner', content_type=self.inner_ct)
-        user.user_permissions.add(permission)
-        permission = Permission.objects.get(codename='change_inner', content_type=self.inner_ct)
-        user.user_permissions.add(permission)
-        response = self.client.get(self.change_url)
-        self.assertContains(response, '<h2>Inners</h2>')
-        self.assertContains(response, 'value="4" id="id_inner_set-TOTAL_FORMS"')
-        self.assertContains(response, '<input type="hidden" name="inner_set-0-id" value="1"')
+        permission = Permission.objects.get(codename='add_inner2', content_type=self.inner_ct)
+        self.user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='change_inner2', content_type=self.inner_ct)
+        self.user.user_permissions.add(permission)
+        response = self.client.get(self.holder_change_url)
+        # Add/change perm, so we can add new and change existing
+        self.assertContains(response, '<h2>Inner2s</h2>')
+        # One form for existing instance and three extra for new
+        self.assertContains(response, 'value="4" id="id_inner2_set-TOTAL_FORMS"')
+        self.assertContains(response, '<input type="hidden" name="inner2_set-0-id" value="1"')
 
-    def test_inline_change_fk_del_perm(self):
-        # The Author ForeignKey in the Book model does not allow NULL values,
-        # so we use different models this time.
-        user = self.user
-        collection = TitleCollection.objects.create(pk=1)
-        title = Title.objects.create(collection=collection, title1='foo', title2='foo')
-        collection_ct = ContentType.objects.get_for_model(TitleCollection)
-        title_ct = ContentType.objects.get_for_model(Title)
-        permission = Permission.objects.get(codename='change_titlecollection', content_type=collection_ct)
-        user.user_permissions.add(permission)
-        permission = Permission.objects.get(codename='change_title', content_type=title_ct)
-        user.user_permissions.add(permission)
-        permission = Permission.objects.get(codename='delete_title', content_type=title_ct)
-        user.user_permissions.add(permission)
-        response = self.client.get('/admin/admin_inlines/titlecollection/1/')
-        self.assertContains(response, '<h2>Titles</h2>')
-        self.assertContains(response, 'id="id_title_set-0-DELETE"')
+
+    def test_inline_change_fk_change_del_perm(self):
+        permission = Permission.objects.get(codename='change_inner2', content_type=self.inner_ct)
+        self.user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='delete_inner2', content_type=self.inner_ct)
+        self.user.user_permissions.add(permission)
+        response = self.client.get(self.holder_change_url)
+        # Change/delete perm on inner2s, so we can change/delete existing
+        self.assertContains(response, '<h2>Inner2s</h2>')
+        # One form for existing instance only, no new
+        self.assertContains(response, 'value="1" id="id_inner2_set-TOTAL_FORMS"')
+        self.assertContains(response, '<input type="hidden" name="inner2_set-0-id" value="1"')
+        self.assertContains(response, 'id="id_inner2_set-0-DELETE"')
+
+
+    def test_inline_change_fk_all_perms(self):
+        permission = Permission.objects.get(codename='add_inner2', content_type=self.inner_ct)
+        self.user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='change_inner2', content_type=self.inner_ct)
+        self.user.user_permissions.add(permission)
+        permission = Permission.objects.get(codename='delete_inner2', content_type=self.inner_ct)
+        self.user.user_permissions.add(permission)
+        response = self.client.get(self.holder_change_url)
+        # All perms on inner2s, so we can add/change/delete
+        self.assertContains(response, '<h2>Inner2s</h2>')
+        # One form for existing instance only, three for new
+        self.assertContains(response, 'value="4" id="id_inner2_set-TOTAL_FORMS"')
+        self.assertContains(response, '<input type="hidden" name="inner2_set-0-id" value="1"')
+        self.assertContains(response, 'id="id_inner2_set-0-DELETE"')
