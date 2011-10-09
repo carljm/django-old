@@ -100,7 +100,7 @@ Just one thing to do: We need to tell the admin that ``Poll``
 objects have an admin interface. To do this, create a file called
 ``admin.py`` in your ``polls`` directory, and edit it to look like this::
 
-    from polls.models import Poll
+    from mysite.polls.models import Poll
     from django.contrib import admin
 
     admin.site.register(Poll)
@@ -236,7 +236,7 @@ Yet.
 There are two ways to solve this problem. The first is to register ``Choice``
 with the admin just as we did with ``Poll``. That's easy::
 
-    from polls.models import Choice
+    from mysite.polls.models import Choice
 
     admin.site.register(Choice)
 

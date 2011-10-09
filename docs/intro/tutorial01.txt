@@ -90,27 +90,36 @@ within your Python installation. Consider symlinking to :doc:`django-admin.py
 Let's look at what :djadmin:`startproject` created::
 
     mysite/
-        __init__.py
         manage.py
-        settings.py
-        urls.py
+        mysite/
+            __init__.py
+            settings.py
+            urls.py
 
 These files are:
 
-    * :file:`__init__.py`: An empty file that tells Python that this directory
-      should be considered a Python package. (Read `more about packages`_ in the
-      official Python docs if you're a Python beginner.)
+    * The outer :file:`mysite/` directory is just a container for your
+      project. Its name doesn't matter; you can rename it to anything you like.
 
     * :file:`manage.py`: A command-line utility that lets you interact with this
       Django project in various ways. You can read all the details about
       :file:`manage.py` in :doc:`/ref/django-admin`.
 
-    * :file:`settings.py`: Settings/configuration for this Django project.
-      :doc:`/topics/settings` will tell you all about how settings work.
+    * The inner :file:`mysite/` directory is the actual Python package for your
+      project, where you can place additional Python code modules. Its name is
+      the Python package name you'll need to use to import anything inside it.
 
-    * :file:`urls.py`: The URL declarations for this Django project; a "table of
-      contents" of your Django-powered site. You can read more about URLs in
-      :doc:`/topics/http/urls`.
+    * :file:`mysite/__init__.py`: An empty file that tells Python that this
+      directory should be considered a Python package. (Read `more about
+      packages`_ in the official Python docs if you're a Python beginner.)
+
+    * :file:`mysite/settings.py`: Settings/configuration for this Django
+      project.  :doc:`/topics/settings` will tell you all about how settings
+      work.
+
+    * :file:`mysite/urls.py`: The URL declarations for this Django project; a
+      "table of contents" of your Django-powered site. You can read more about
+      URLs in :doc:`/topics/http/urls`.
 
 .. _more about packages: http://docs.python.org/tutorial/modules.html#packages
 
@@ -124,7 +133,7 @@ the following output on the command line::
     Validating models...
     0 errors found.
 
-    Django version 1.0, using settings 'mysite.settings'
+    Django version 1.4, using settings 'mysite.settings'
     Development server is running at http://127.0.0.1:8000/
     Quit the server with CONTROL-C.
 
@@ -286,16 +295,17 @@ so you can focus on writing code rather than creating directories.
     multiple apps. An app can be in multiple projects.
 
 Your apps can live anywhere on your `Python path`_. In this tutorial, we'll
-create our poll app in the :file:`mysite` directory for simplicity.
+create our poll app inside the :file:`mysite` package for simplicity.
 
-To create your app, make sure you're in the :file:`mysite` directory and type
-this command:
+To create your app, make sure you're in the same directory as :file:`manage.py`
+and type this command:
 
 .. code-block:: bash
 
     python manage.py startapp polls
 
-That'll create a directory :file:`polls`, which is laid out like this::
+That'll create a directory :file:`polls` inside the :file:`mysite` package,
+which is laid out like this::
 
     polls/
         __init__.py
@@ -384,7 +394,7 @@ But first we need to tell our project that the ``polls`` app is installed.
     Django installation.
 
 Edit the :file:`settings.py` file again, and change the
-:setting:`INSTALLED_APPS` setting to include the string ``'polls'``. So
+:setting:`INSTALLED_APPS` setting to include the string ``'mysite.polls'``. So
 it'll look like this::
 
     INSTALLED_APPS = (
@@ -392,7 +402,7 @@ it'll look like this::
         'django.contrib.contenttypes',
         'django.contrib.sessions',
         'django.contrib.sites',
-        'polls'
+        'mysite.polls'
     )
 
 Now Django knows to include the ``polls`` app. Let's run another
@@ -500,33 +510,23 @@ API Django gives you. To invoke the Python shell, use this command:
     python manage.py shell
 
 We're using this instead of simply typing "python", because ``manage.py`` sets
-up the project's environment for you. "Setting up the environment" involves two
-things:
-
-    * Putting ``polls`` on ``sys.path``. For flexibility, several pieces of
-      Django refer to projects in Python dotted-path notation (e.g.
-      ``'polls.models'``). In order for this to work, the ``polls``
-      package has to be on ``sys.path``.
-
-      We've already seen one example of this: the :setting:`INSTALLED_APPS`
-      setting is a list of packages in dotted-path notation.
-
-    * Setting the ``DJANGO_SETTINGS_MODULE`` environment variable, which gives
-      Django the path to your ``settings.py`` file.
+up the project's environment for you. This actually just means setting the
+``DJANGO_SETTINGS_MODULE`` environment variable, which gives Django the Python
+import path to your ``settings.py`` file.
 
 .. admonition:: Bypassing manage.py
 
-    If you'd rather not use ``manage.py``, no problem. Just make sure ``mysite``
-    and ``polls`` are at the root level on the Python path (i.e., ``import mysite``
-    and ``import polls`` work) and set the ``DJANGO_SETTINGS_MODULE`` environment
-    variable to ``mysite.settings``.
+    If you'd rather not use ``manage.py``, no problem. Just make sure
+    ``mysite`` is at the root level on the Python path (i.e., ``import mysite``
+    works) and set the ``DJANGO_SETTINGS_MODULE`` environment variable to
+    ``mysite.settings``.
 
     For more information on all of this, see the :doc:`django-admin.py
     documentation </ref/django-admin>`.
 
 Once you're in the shell, explore the :doc:`database API </topics/db/queries>`::
 
-    >>> from polls.models import Poll, Choice # Import the model classes we just wrote.
+    >>> from mysite.polls.models import Poll, Choice # Import the model classes we just wrote.
 
     # No polls are in the system yet.
     >>> Poll.objects.all()
@@ -618,7 +618,7 @@ Note the addition of ``import datetime`` to reference Python's standard
 Save these changes and start a new Python interactive shell by running
 ``python manage.py shell`` again::
 
-    >>> from polls.models import Poll, Choice
+    >>> from mysite.polls.models import Poll, Choice
 
     # Make sure our __unicode__() addition worked.
     >>> Poll.objects.all()

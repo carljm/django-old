@@ -74,13 +74,13 @@ created a URLconf for the polls application that includes this line::
     (r'^(?P<poll_id>\d+)/vote/$', 'vote'),
 
 We also created a dummy implementation of the ``vote()`` function. Let's
-create a real version. Add the following to ``polls/views.py``::
+create a real version. Add the following to ``mysite/polls/views.py``::
 
     from django.shortcuts import get_object_or_404, render_to_response
     from django.http import HttpResponseRedirect, HttpResponse
     from django.core.urlresolvers import reverse
     from django.template import RequestContext
-    from polls.models import Choice, Poll
+    from mysite.polls.models import Choice, Poll
     # ...
     def vote(request, poll_id):
         p = get_object_or_404(Poll, pk=poll_id)
@@ -98,7 +98,7 @@ create a real version. Add the following to ``polls/views.py``::
             # Always return an HttpResponseRedirect after successfully dealing
             # with POST data. This prevents data from being posted twice if a
             # user hits the Back button.
-            return HttpResponseRedirect(reverse('polls.views.results', args=(p.id,)))
+            return HttpResponseRedirect(reverse('mysite.polls.views.results', args=(p.id,)))
 
 This code includes a few things we haven't covered yet in this tutorial:
 
@@ -215,12 +215,12 @@ Read on for details.
 
     You should know basic math before you start using a calculator.
 
-First, open the ``polls/urls.py`` URLconf. It looks like this, according to the
-tutorial so far::
+First, open the ``mysite/polls/urls.py`` URLconf. It looks like this, according
+to the tutorial so far::
 
     from django.conf.urls import patterns, include, url
 
-    urlpatterns = patterns('polls.views',
+    urlpatterns = patterns('mysite.polls.views',
         (r'^$', 'index'),
         (r'^(?P<poll_id>\d+)/$', 'detail'),
         (r'^(?P<poll_id>\d+)/results/$', 'results'),
@@ -231,7 +231,7 @@ Change it like so::
 
     from django.conf.urls import patterns, include, url
     from django.views.generic import DetailView, ListView
-    from polls.models import Poll
+    from mysite.polls.models import Poll
 
     urlpatterns = patterns('',
         (r'^$',
@@ -248,7 +248,7 @@ Change it like so::
                 model=Poll,
                 template_name='polls/results.html'),
             name='poll_results'),
-        (r'^(?P<poll_id>\d+)/vote/$', 'polls.views.vote'),
+        (r'^(?P<poll_id>\d+)/vote/$', 'mysite.polls.views.vote'),
     )
 
 We're using two generic views here:
@@ -302,9 +302,9 @@ As an alternative approach, you could change your templates to match
 the new default context variables -- but it's a lot easier to just
 tell Django to use the variable you want.
 
-You can now delete the ``index()``, ``detail()`` and ``results()``
-views from ``polls/views.py``. We don't need them anymore -- they have
-been replaced by generic views.
+You can now delete the ``index()``, ``detail()`` and ``results()`` views from
+``mysite/polls/views.py``. We don't need them anymore -- they have been
+replaced by generic views.
 
 The last thing to do is fix the URL handling to account for the use of
 generic views. In the vote view above, we used the
