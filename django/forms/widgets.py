@@ -2,13 +2,15 @@
 HTML Widget classes
 """
 
+from __future__ import absolute_import
+
 import copy
 import datetime
 from itertools import chain
 from urlparse import urljoin
-from util import flatatt
 
 from django.conf import settings
+from django.forms.util import flatatt
 from django.utils.datastructures import MultiValueDict, MergeDict
 from django.utils.html import escape, conditional_escape
 from django.utils.translation import ugettext, ugettext_lazy
@@ -138,7 +140,7 @@ class MediaDefiningClass(type):
 class Widget(object):
     __metaclass__ = MediaDefiningClass
     is_hidden = False          # Determines whether this corresponds to an <input type="hidden">.
-    needs_multipart_form = False # Determines does this widget need multipart-encrypted form
+    needs_multipart_form = False # Determines does this widget need multipart form
     is_localized = False
     is_required = False
 

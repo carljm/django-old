@@ -154,7 +154,6 @@ def _user_has_perm(user, perm, obj):
 
 
 def _user_has_module_perms(user, app_label):
-    active = user.is_active
     for backend in auth.get_backends():
         if hasattr(backend, "has_module_perms"):
             if backend.has_module_perms(user, app_label):
@@ -220,7 +219,7 @@ class User(models.Model):
     def check_password(self, raw_password):
         """
         Returns a boolean of whether the raw_password was correct. Handles
-        encryption formats behind the scenes.
+        hashing formats behind the scenes.
         """
         # Backwards-compatibility check. Older passwords won't include the
         # algorithm or salt.

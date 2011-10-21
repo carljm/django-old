@@ -9,11 +9,13 @@ from threading import local
 
 from django.conf import settings
 from django.template import Template, Context
+from django.template.base import TemplateSyntaxError
 from django.test import TestCase, RequestFactory
 from django.test.utils import override_settings
 from django.utils import translation
 from django.utils.formats import (get_format, date_format, time_format,
-    localize, localize_input, iter_format_modules, get_format_modules)
+    localize, localize_input, iter_format_modules, get_format_modules,
+    number_format)
 from django.utils.importlib import import_module
 from django.utils.numberformat import format as nformat
 from django.utils.safestring import mark_safe, SafeString, SafeUnicode
@@ -22,11 +24,20 @@ from django.utils.translation import (ugettext, ugettext_lazy, activate,
     get_language_info, get_language, get_language_from_request)
 
 
-from .commands.tests import NoWrapExtractorTests, IgnoredExtractorTests, MessageCompilationTests, PoFileTests, BasicExtractorTests, JavascriptExtractorTests, CopyPluralFormsExtractorTests, SymlinkExtractorTests, ExtractorTests
+from .commands.tests import can_run_extraction_tests, can_run_compilation_tests
+if can_run_extraction_tests:
+    from .commands.extraction import (ExtractorTests, BasicExtractorTests,
+        JavascriptExtractorTests, IgnoredExtractorTests, SymlinkExtractorTests,
+        CopyPluralFormsExtractorTests, NoWrapExtractorTests)
+if can_run_compilation_tests:
+    from .commands.compilation import MessageCompilationTests, PoFileTests
 from .contenttypes.tests import ContentTypeTests
 from .forms import I18nForm, SelectDateForm, SelectDateWidget, CompanyForm
 from .models import Company, TestModel
-from .patterns.tests import URLRedirectWithoutTrailingSlashTests, URLTranslationTests, URLDisabledTests, URLTagTests, URLTestCaseBase, URLRedirectWithoutTrailingSlashSettingTests, URLNamespaceTests, URLPrefixTests, URLResponseTests, URLRedirectTests
+from .patterns.tests import (URLRedirectWithoutTrailingSlashTests,
+    URLTranslationTests, URLDisabledTests, URLTagTests, URLTestCaseBase,
+    URLRedirectWithoutTrailingSlashSettingTests, URLNamespaceTests,
+    URLPrefixTests, URLResponseTests, URLRedirectTests)
 from .test_warnings import DeprecationWarningTests
 
 
@@ -86,6 +97,126 @@ class TranslationTests(TestCase):
                 self.assertEqual(pgettext("month name", "May"), u"Mai")
                 self.assertEqual(pgettext("verb", "May"), u"Kann")
                 self.assertEqual(npgettext("search", "%d result", "%d results", 4) % 4, u"4 Resultate")
+
+    def test_template_tags_pgettext(self):
+        """
+        Ensure that message contexts are taken into account the {% trans %} and
+        {% blocktrans %} template tags.
+        Refs #14806.
+        """
+        # Reset translation catalog to include other/locale/de
+        extended_locale_paths = settings.LOCALE_PATHS + (
+            os.path.join(here, 'other', 'locale'),
+        )
+        with self.settings(LOCALE_PATHS=extended_locale_paths):
+            from django.utils.translation import trans_real
+            trans_real._active = local()
+            trans_real._translations = {}
+            with translation.override('de'):
+
+                # {% trans %} -----------------------------------
+
+                # Inexisting context...
+                t = Template('{% load i18n %}{% trans "May" context "unexisting" %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, 'May')
+
+                # Existing context...
+                # Using a literal
+                t = Template('{% load i18n %}{% trans "May" context "month name" %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, 'Mai')
+                t = Template('{% load i18n %}{% trans "May" context "verb" %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, 'Kann')
+
+                # Using a variable
+                t = Template('{% load i18n %}{% trans "May" context message_context %}')
+                rendered = t.render(Context({'message_context': 'month name'}))
+                self.assertEqual(rendered, 'Mai')
+                t = Template('{% load i18n %}{% trans "May" context message_context %}')
+                rendered = t.render(Context({'message_context': 'verb'}))
+                self.assertEqual(rendered, 'Kann')
+
+                # Using a filter
+                t = Template('{% load i18n %}{% trans "May" context message_context|lower %}')
+                rendered = t.render(Context({'message_context': 'MONTH NAME'}))
+                self.assertEqual(rendered, 'Mai')
+                t = Template('{% load i18n %}{% trans "May" context message_context|lower %}')
+                rendered = t.render(Context({'message_context': 'VERB'}))
+                self.assertEqual(rendered, 'Kann')
+
+                # Using 'as'
+                t = Template('{% load i18n %}{% trans "May" context "month name" as var %}Value: {{ var }}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, 'Value: Mai')
+                t = Template('{% load i18n %}{% trans "May" as var context "verb" %}Value: {{ var }}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, 'Value: Kann')
+
+                # Mis-uses
+                self.assertRaises(TemplateSyntaxError, Template, '{% load i18n %}{% trans "May" context as var %}{{ var }}')
+                self.assertRaises(TemplateSyntaxError, Template, '{% load i18n %}{% trans "May" as var context %}{{ var }}')
+
+                # {% blocktrans %} ------------------------------
+
+                # Inexisting context...
+                t = Template('{% load i18n %}{% blocktrans context "unexisting" %}May{% endblocktrans %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, 'May')
+
+                # Existing context...
+                # Using a literal
+                t = Template('{% load i18n %}{% blocktrans context "month name" %}May{% endblocktrans %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, 'Mai')
+                t = Template('{% load i18n %}{% blocktrans context "verb" %}May{% endblocktrans %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, 'Kann')
+
+                # Using a variable
+                t = Template('{% load i18n %}{% blocktrans context message_context %}May{% endblocktrans %}')
+                rendered = t.render(Context({'message_context': 'month name'}))
+                self.assertEqual(rendered, 'Mai')
+                t = Template('{% load i18n %}{% blocktrans context message_context %}May{% endblocktrans %}')
+                rendered = t.render(Context({'message_context': 'verb'}))
+                self.assertEqual(rendered, 'Kann')
+
+                # Using a filter
+                t = Template('{% load i18n %}{% blocktrans context message_context|lower %}May{% endblocktrans %}')
+                rendered = t.render(Context({'message_context': 'MONTH NAME'}))
+                self.assertEqual(rendered, 'Mai')
+                t = Template('{% load i18n %}{% blocktrans context message_context|lower %}May{% endblocktrans %}')
+                rendered = t.render(Context({'message_context': 'VERB'}))
+                self.assertEqual(rendered, 'Kann')
+
+                # Using 'count'
+                t = Template('{% load i18n %}{% blocktrans count number=1 context "super search" %}{{ number }} super result{% plural %}{{ number }} super results{% endblocktrans %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, '1 Super-Ergebnis')
+                t = Template('{% load i18n %}{% blocktrans count number=2 context "super search" %}{{ number }} super result{% plural %}{{ number }} super results{% endblocktrans %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, '2 Super-Ergebnisse')
+                t = Template('{% load i18n %}{% blocktrans context "other super search" count number=1 %}{{ number }} super result{% plural %}{{ number }} super results{% endblocktrans %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, '1 anderen Super-Ergebnis')
+                t = Template('{% load i18n %}{% blocktrans context "other super search" count number=2 %}{{ number }} super result{% plural %}{{ number }} super results{% endblocktrans %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, '2 andere Super-Ergebnisse')
+
+                # Using 'with'
+                t = Template('{% load i18n %}{% blocktrans with num_comments=5 context "comment count" %}There are {{ num_comments }} comments{% endblocktrans %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, 'Es gibt 5 Kommentare')
+                t = Template('{% load i18n %}{% blocktrans with num_comments=5 context "other comment count" %}There are {{ num_comments }} comments{% endblocktrans %}')
+                rendered = t.render(Context())
+                self.assertEqual(rendered, 'Andere: Es gibt 5 Kommentare')
+
+                # Mis-uses
+                self.assertRaises(TemplateSyntaxError, Template, '{% load i18n %}{% blocktrans context with month="May" %}{{ month }}{% endblocktrans %}')
+                self.assertRaises(TemplateSyntaxError, Template, '{% load i18n %}{% blocktrans context %}{% endblocktrans %}')
+                self.assertRaises(TemplateSyntaxError, Template, '{% load i18n %}{% blocktrans count number=2 context %}{{ number }} super result{% plural %}{{ number }} super results{% endblocktrans %}')
+
 
     def test_string_concat(self):
         """
@@ -266,6 +397,39 @@ class FormattingTests(TestCase):
                     NUMBER_GROUPING=1, THOUSAND_SEPARATOR='!'):
                 self.assertEqual(u'66666.67', Template('{{ n|floatformat:2 }}').render(self.ctxt))
                 self.assertEqual(u'100000.0', Template('{{ f|floatformat }}').render(self.ctxt))
+
+    def test_false_like_locale_formats(self):
+        """
+        Ensure that the active locale's formats take precedence over the
+        default settings even if they would be interpreted as False in a
+        conditional test (e.g. 0 or empty string).
+        Refs #16938.
+        """
+        from django.conf.locale.fr import formats as fr_formats
+
+        # Back up original formats
+        backup_THOUSAND_SEPARATOR = fr_formats.THOUSAND_SEPARATOR
+        backup_FIRST_DAY_OF_WEEK = fr_formats.FIRST_DAY_OF_WEEK
+
+        # Set formats that would get interpreted as False in a conditional test
+        fr_formats.THOUSAND_SEPARATOR = ''
+        fr_formats.FIRST_DAY_OF_WEEK = 0
+
+        with translation.override('fr'):
+            with self.settings(USE_L10N=True, USE_THOUSAND_SEPARATOR=True,
+                               THOUSAND_SEPARATOR='!'):
+                self.assertEqual('', get_format('THOUSAND_SEPARATOR'))
+                # Even a second time (after the format has been cached)...
+                self.assertEqual('', get_format('THOUSAND_SEPARATOR'))
+
+            with self.settings(USE_L10N=True, FIRST_DAY_OF_WEEK=1):
+                self.assertEqual(0, get_format('FIRST_DAY_OF_WEEK'))
+                # Even a second time (after the format has been cached)...
+                self.assertEqual(0, get_format('FIRST_DAY_OF_WEEK'))
+
+        # Restore original formats
+        fr_formats.THOUSAND_SEPARATOR = backup_THOUSAND_SEPARATOR
+        fr_formats.FIRST_DAY_OF_WEEK = backup_FIRST_DAY_OF_WEEK
 
     def test_l10n_enabled(self):
         settings.USE_L10N = True

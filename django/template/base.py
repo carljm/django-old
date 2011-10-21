@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import re
 from functools import partial
 from inspect import getargspec
@@ -10,7 +12,7 @@ from django.utils.itercompat import is_iterable
 from django.utils.text import (smart_split, unescape_string_literal,
     get_text_list)
 from django.utils.encoding import smart_unicode, force_unicode, smart_str
-from django.utils.translation import ugettext_lazy
+from django.utils.translation import ugettext_lazy, pgettext_lazy
 from django.utils.safestring import (SafeData, EscapeData, mark_safe,
     mark_for_escaping)
 from django.utils.formats import localize
@@ -141,7 +143,7 @@ class Template(object):
 def compile_string(template_string, origin):
     "Compiles template_string into NodeList ready for rendering"
     if settings.TEMPLATE_DEBUG:
-        from debug import DebugLexer, DebugParser
+        from django.template.debug import DebugLexer, DebugParser
         lexer_class, parser_class = DebugLexer, DebugParser
     else:
         lexer_class, parser_class = Lexer, Parser
@@ -673,6 +675,7 @@ class Variable(object):
         self.literal = None
         self.lookups = None
         self.translate = False
+        self.message_context = None
 
         try:
             # First try to treat this variable as a number.
@@ -720,7 +723,10 @@ class Variable(object):
             # We're dealing with a literal, so it's already been "resolved"
             value = self.literal
         if self.translate:
-            return ugettext_lazy(value)
+            if self.message_context:
+                return pgettext_lazy(self.message_context, value)
+            else:
+                return ugettext_lazy(value)
         return value
 
     def __repr__(self):
