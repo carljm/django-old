@@ -109,7 +109,7 @@ Managing uWSGI
 Starting the server
 -------------------
 
-Example command line for a Web server that understand the uWSGI protocol::
+Example command line for a Web server that understands the uWSGI protocol::
 
     uwsgi --chdir=/path/to/your/project
         --module='mysite.wsgi:application' \
