@@ -51,10 +51,10 @@ The ``<Directory>`` piece just ensures that Apache can access your
 :file:`wsgi.py` file.
 
 Next we'll need to ensure this :file:`wsgi.py` with a WSGI application object
-exists. As of Django version 1.4, :djadmin:`startproject`, will have
-created one for you; otherwise, you'll need to create it. See the :doc:`WSGI
-overview documentation</howto/deployment/wsgi/index>` for the default contents
-you should put in this file, and what else you can add to it.
+exists. As of Django version 1.4, :djadmin:`startproject` will have created one
+for you; otherwise, you'll need to create it. See the :doc:`WSGI overview
+documentation</howto/deployment/wsgi/index>` for the default contents you
+should put in this file, and what else you can add to it.
 
 Using a virtualenv
 ==================

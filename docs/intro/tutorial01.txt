@@ -131,7 +131,7 @@ These files are:
   URLs in :doc:`/topics/http/urls`.
 
 * :file:`mysite/wsgi.py`: An entry-point for WSGI-compatible webservers to
-  serve your project. See :doc:`howto/deployment/wsgi` for more details.
+  serve your project. See :doc:`/howto/deployment/wsgi/index` for more details.
 
 .. _more about packages: http://docs.python.org/tutorial/modules.html#packages
 

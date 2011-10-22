@@ -68,9 +68,9 @@ the uWSGI server.
     on that file.
 
 uWSGI is highly configurable and thus there are many ways to start the
-process. For example, uwsgi version 0.9.6.8 provides a hundred switches.
-This guide demonstrates the most important of them, but does not intent to
-substitute the official manual and online documentation.
+process. For example, uwsgi version 0.9.6.8 provides a hundred switches.  This
+guide demonstrates the most important of them, but is not a substitute the
+official manual and online documentation.
 
 uWSGI supports configuration through:
 
@@ -130,7 +130,7 @@ within it a module :file:`mysite/wsgi.py` that contains a WSGI ``application``
 object. This is the layout you will have if you ran ``django-admin.py
 startproject mysite`` (using your own project name in place of ``mysite``) with
 a recent version of Django. If this file does not exist, you'll need to create
-it. See the :doc:`howto/deployment/wsgi/` documentation for the default
+it. See the :doc:`/howto/deployment/wsgi/index` documentation for the default
 contents you should put in this file, and what else you can add to it.
 
 The Django-specific options here are:
