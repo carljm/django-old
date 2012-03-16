@@ -200,7 +200,6 @@ class Collector(object):
         sorted_models = []
         concrete_models = set()
         models = self.data.keys()
-        import pdb; pdb.set_trace()
         while len(sorted_models) < len(models):
             found = False
             for model in models:
