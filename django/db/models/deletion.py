@@ -76,7 +76,13 @@ class Collector(object):
         self.data = {}
         self.batches = {} # {model: {field: set([instances])}}
         self.field_updates = {} # {model: {(field, value): set([instances])}}
-        self.dependencies = {} # {model: set([models])} - concrete only
+
+        # Tracks deletion-order dependency for databases without transactions
+        # or ability to defer constraint checks. Only concrete model classes
+        # should be included, as the dependencies exist only between actual
+        # database tables; proxy models are represented here by their concrete
+        # parent.
+        self.dependencies = {} # {model: set([models])}
 
     def add(self, objs, source=None, nullable=False, reverse_dependency=False):
         """
