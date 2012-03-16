@@ -76,7 +76,7 @@ class Collector(object):
         self.data = {}
         self.batches = {} # {model: {field: set([instances])}}
         self.field_updates = {} # {model: {(field, value): set([instances])}}
-        self.dependencies = {} # {model: set([models])}
+        self.dependencies = {} # {model: set([models])} - concrete only
 
     def add(self, objs, source=None, nullable=False, reverse_dependency=False):
         """
@@ -101,7 +101,8 @@ class Collector(object):
         if source is not None and not nullable:
             if reverse_dependency:
                 source, model = model, source
-            self.dependencies.setdefault(source, set()).add(model)
+            self.dependencies.setdefault(
+                source._meta.concrete_model, set()).add(model._meta.concrete_model)
         return new_objs
 
     def add_batch(self, model, field, objs):
@@ -197,15 +198,18 @@ class Collector(object):
 
     def sort(self):
         sorted_models = []
+        concrete_models = set()
         models = self.data.keys()
+        import pdb; pdb.set_trace()
         while len(sorted_models) < len(models):
             found = False
             for model in models:
                 if model in sorted_models:
                     continue
-                dependencies = self.dependencies.get(model)
-                if not (dependencies and dependencies.difference(sorted_models)):
+                dependencies = self.dependencies.get(model._meta.concrete_model)
+                if not (dependencies and dependencies.difference(concrete_models)):
                     sorted_models.append(model)
+                    concrete_models.add(model._meta.concrete_model)
                     found = True
             if not found:
                 return
