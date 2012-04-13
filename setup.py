@@ -10,11 +10,15 @@ import sys
 # still present in site-packages. See #18115.
 overlay_warning = False
 if "install" in sys.argv:
-    existing_path = os.path.abspath(os.path.join(get_python_lib(), "django"))
-    if os.path.exists(existing_path):
-        # We note the need for the warning here, but present it after the
-        # command is run, so it's more likely to be seen.
-        overlay_warning = True
+    # We have to try also with an explicit prefix of /usr/local in order to
+    # catch Debian's custom user site-packages directory.
+    for lib_path in get_python_lib(), get_python_lib(prefix="/usr/local"):
+        existing_path = os.path.abspath(os.path.join(lib_path, "django"))
+        if os.path.exists(existing_path):
+            # We note the need for the warning here, but present it after the
+            # command is run, so it's more likely to be seen.
+            overlay_warning = True
+            break
 
 class osx_install_data(install_data):
     # On MacOS, the platform-specific lib dir is /System/Library/Framework/Python/.../
